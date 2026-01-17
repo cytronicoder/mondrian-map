@@ -58,7 +58,27 @@ def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
 
 
 def count_overlaps(rects: list, padding: float = 0.0) -> int:
-    """Count pairwise rectangle overlaps."""
+    """
+    Count the number of overlapping rectangle pairs.
+
+    Parameters
+    ----------
+    rects : list
+        List of rectangles in the format returned by ``fill_blocks_around_point``,
+        where each rectangle is represented as ``((x0, y0), (x1, y1))``.
+    padding : float, optional
+        Minimum separation distance. A positive value expands each rectangle
+        by ``padding`` in all directions before checking for overlap.
+
+    Returns
+    -------
+    int
+        The number of unordered pairs of rectangles that overlap.
+
+    Notes
+    -----
+    This function runs in O(n^2) time with respect to the number of rectangles.
+    """
     overlaps = 0
     for i in range(len(rects)):
         for j in range(i + 1, len(rects)):
