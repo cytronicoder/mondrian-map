@@ -2,28 +2,35 @@
 Authentic Mondrian Map Explorer - Streamlit Application
 
 This is the main Streamlit application for visualizing biological pathway data
-using authentic Mondrian Map algorithms from the bioRxiv paper.
+using authentic Mondrian Map algorithms from the IEEE BIBM 2024 paper.
 """
 
+import html
+import io
 import pickle
 import re
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
-# Add the src directory to the path to import our modules
-sys.path.append(str(Path(__file__).parent.parent / "src"))
+# Ensure the project root is in sys.path to find the mondrian_map package
+# This solves ModuleNotFoundError when running from the apps/ directory
+import sys
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+# Import from package
 from mondrian_map.core import Colors
 from mondrian_map.data_processing import (
     get_colors,
     get_mondrian_color_description,
-    load_dataset,
     load_pathway_info,
-    load_uploaded_dataset,
 )
 from mondrian_map.visualization import (
     create_authentic_mondrian_map,
@@ -32,7 +39,8 @@ from mondrian_map.visualization import (
 )
 
 # Configuration
-DATA_DIR = Path("data/case_study/pathways_prepared_for_visualization")
+APP_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = APP_DIR / "data/case_study/pathways_prepared_for_visualization"
 DATASETS = {
     "Aggressive R1": DATA_DIR / "wikipathway_aggressive_R1_TP.csv",
     "Aggressive R2": DATA_DIR / "wikipathway_aggressive_R2_TP.csv",
@@ -42,6 +50,8 @@ DATASETS = {
     "Nonaggressive R2": DATA_DIR / "wikipathway_nonaggressive_R2_TP.csv",
 }
 
+DEFAULTS = dict(up=1.25, down=0.75, fdr=0.05)
+
 # ------------------------------------------------------------
 # Unified Plotly configuration: interactive (hover disabled via JS) + no mode bar
 # ------------------------------------------------------------
@@ -49,26 +59,75 @@ PLOT_CONFIG = {"displayModeBar": False}
 
 
 @st.cache_data
+def load_csv_cached(csv_path: str, mtime: float):
+    """Load CSV from disk with caching based on mtime"""
+    return pd.read_csv(csv_path)
+
+
+@st.cache_data
+def load_uploaded_csv_cached(file_bytes: bytes):
+    """Load CSV from bytes with caching"""
+    return pd.read_csv(io.BytesIO(file_bytes))
+
+
+def enrich_dataset(df: pd.DataFrame, pathway_info: dict) -> pd.DataFrame:
+    """Add pathway descriptions and metadata to the dataframe"""
+    df["Description"] = df["GS_ID"].map(
+        lambda x: pathway_info.get(x, {}).get("Description", "")
+    )
+    df["Ontology"] = df["GS_ID"].map(
+        lambda x: pathway_info.get(x, {}).get("Pathway Ontology", "")
+    )
+    df["Disease"] = df["GS_ID"].map(
+        lambda x: pathway_info.get(x, {}).get("Disease", "")
+    )
+    df["NAME"] = df["GS_ID"].map(lambda x: pathway_info.get(x, {}).get("NAME", x))
+    return df
+
+
+@st.cache_data
 def load_pathway_info_cached():
     """Load pathway info with caching"""
-    info_path = Path("data/case_study/pathway_details/annotations_with_summary.json")
+    info_path = APP_DIR / "data/case_study/pathway_details/annotations_with_summary.json"
     return load_pathway_info(info_path)
 
 
 @st.cache_data
 def load_deg_data():
     """Load differential gene expression data"""
-    deg_path = Path("data/case_study/differentially_expressed_genes/DEGs.pkl")
+    deg_path = APP_DIR / "data/case_study/differentially_expressed_genes/DEGs.pkl"
     if deg_path.exists():
         with open(deg_path, "rb") as f:
             return pickle.load(f)
     return None
 
 
+def update_clicked_pathway_info(clicked_data):
+    """Refactored helper to update session state on click"""
+    if (
+        clicked_data
+        and hasattr(clicked_data, "selection")
+        and clicked_data.selection.points
+    ):
+        pt = clicked_data.selection.points[0]
+        if isinstance(pt, dict) and pt.get("customdata"):
+            st.session_state.clicked_pathway_info = pt["customdata"]
+
+
 def display_pathway_tooltip(pathway_info: dict):
-    """Display a squared tooltip with full pathway description"""
+    """Display a squared tooltip with full pathway description (XSS safe)"""
     if not pathway_info:
         return
+
+    # Escaping content for security (P1)
+    name = html.escape(str(pathway_info.get("name", "")))
+    pid = html.escape(str(pathway_info.get("pathway_id", "")))
+    ontology = html.escape(str(pathway_info.get("ontology", "")))
+    disease = html.escape(str(pathway_info.get("disease", "")))
+    description = html.escape(str(pathway_info.get("description", "")))
+    
+    fc = pathway_info.get("fold_change", 0)
+    pvalue = pathway_info.get("pvalue", 1)
 
     # Create a styled container for the tooltip
     with st.container():
@@ -82,15 +141,15 @@ def display_pathway_tooltip(pathway_info: dict):
                 margin: 20px 0;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             ">
-                <h3 style="margin-top: 0; color: #333;">🧬 {pathway_info['name']}</h3>
-                <p><strong>ID:</strong> {pathway_info['pathway_id']}</p>
-                <p><strong>Fold Change:</strong> {pathway_info['fold_change']:.3f}</p>
-                <p><strong>P-value:</strong> {pathway_info['pvalue']:.2e}</p>
-                <p><strong>Ontology:</strong> {pathway_info['ontology']}</p>
-                <p><strong>Disease:</strong> {pathway_info['disease']}</p>
+                <h3 style="margin-top: 0; color: #333;">🧬 {name}</h3>
+                <p><strong>ID:</strong> {pid}</p>
+                <p><strong>Fold Change:</strong> {fc:.3f}</p>
+                <p><strong>P-value:</strong> {pvalue:.2e}</p>
+                <p><strong>Ontology:</strong> {ontology}</p>
+                <p><strong>Disease:</strong> {disease}</p>
                 <hr style="margin: 15px 0;">
                 <p><strong>Description:</strong></p>
-                <p style="text-align: justify; line-height: 1.6;">{pathway_info['description']}</p>
+                <p style="text-align: justify; line-height: 1.6;">{description}</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -104,7 +163,7 @@ def display_pathway_tooltip(pathway_info: dict):
                 st.rerun()
 
 
-def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float = 1.25):
+def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float, up_color: str = "🔴", down_color: str = "🔵"):
     """Display genes for a selected pathway with differential expression coloring"""
     st.markdown(f"### 🧬 Genes in Pathway: {pathway_id}")
 
@@ -112,17 +171,17 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float =
         st.warning("No differential gene expression data available")
         return
 
-    # Find genes for this pathway (assuming pathway_id is in the data)
-    # This is a simplified version - you may need to adjust based on actual data structure
-    pathway_genes = []
+    pathway_genes = pd.DataFrame()
 
-    # Check if pathway_id exists in the DEG data
+    # Check if pathway_id exists in the DEG data (P0 fix)
     for dataset_name, dataset_data in deg_data.items():
         if isinstance(dataset_data, dict) and "genes" in dataset_data:
             genes_df = dataset_data["genes"]
-            if pathway_id in genes_df.get("pathway_id", []):
-                pathway_genes = genes_df[genes_df["pathway_id"] == pathway_id]
-                break
+            if isinstance(genes_df, pd.DataFrame) and 'pathway_id' in genes_df.columns:
+                mask = genes_df['pathway_id'].astype(str).eq(str(pathway_id))
+                if mask.any():
+                    pathway_genes = genes_df.loc[mask].copy()
+                    break
 
     if len(pathway_genes) == 0:
         st.info(f"No gene data found for pathway {pathway_id}")
@@ -132,11 +191,11 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float =
     gene_display = pathway_genes.copy()
 
     def get_gene_color(fc, pval):
-        if pval < 0.05:  # Significant
+        if pval < 0.05:  # Significant (using standard p<0.05 here, could be parameter)
             if fc >= fc_threshold:
-                return "🔴 Up-regulated"
+                return f"{up_color} Up-regulated"
             elif fc <= (1 / fc_threshold):
-                return "🔵 Down-regulated"
+                return f"{down_color} Down-regulated"
             else:
                 return "🟡 Moderate"
         else:
@@ -150,7 +209,7 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float =
     # Display the gene table
     st.dataframe(
         gene_display[["gene_symbol", "fold_change", "pvalue", "Regulation"]],
-        use_container_width=True,
+        width="stretch",
         height=300,
     )
 
@@ -169,31 +228,33 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float =
         )
         st.metric("Down-regulated", down_genes)
     with col4:
-        sig_genes = len(gene_display[gene_display["Regulation"].str.contains("🔴|🔵")])
+        sig_genes = len(
+            gene_display[gene_display["Regulation"].str.contains(f"{up_color}|{down_color}")]
+        )
         st.metric("Significant", sig_genes)
 
 
-def display_pathway_crosstalks(df_list: list, dataset_names: list):
+def display_pathway_crosstalks(df_list: list, dataset_names: list, min_similarity: float, min_overlap: int):
     """Display pathway-to-pathway interaction details by condition"""
     if not df_list or len(df_list) == 0:
         st.info("No datasets available for crosstalk analysis")
         return
 
     # Load pathway network data
-    network_dir = Path("data/case_study/pathway_networks")
+    network_dir = APP_DIR / "data/case_study/pathway_networks"
 
     if len(df_list) > 1:
         # Create tabs for each dataset's crosstalks
         tabs = st.tabs(dataset_names)
         for i, (df, name) in enumerate(zip(df_list, dataset_names)):
             with tabs[i]:
-                display_dataset_crosstalks(df, name, network_dir)
+                display_dataset_crosstalks(df, name, network_dir, min_similarity, min_overlap)
     else:
         # Single dataset
-        display_dataset_crosstalks(df_list[0], dataset_names[0], network_dir)
+        display_dataset_crosstalks(df_list[0], dataset_names[0], network_dir, min_similarity, min_overlap)
 
 
-def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir: Path):
+def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir: Path, min_similarity: float, min_overlap: int):
     """Display crosstalks for a single dataset"""
     # Map dataset names to network files
     network_file_map = {
@@ -216,7 +277,7 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
         return
 
     try:
-        # Load network data
+        # Load network data (could be cached if large issues arise, but often small enough)
         network_df = pd.read_csv(network_path)
 
         # Get pathway IDs from the current dataset
@@ -232,14 +293,10 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
             st.info(f"No pathway crosstalks found for {dataset_name}")
             return
 
-        # Remove duplicate interactions (A-B and B-A are the same interaction)
-        # Create a canonical representation where smaller ID comes first
+        # Canonical pair fix (P0)
         def create_canonical_pair(row):
-            id_a, id_b = row["GS_A_ID"], row["GS_B_ID"]
-            if id_a < id_b:
-                return f"{id_a}|{id_b}"
-            else:
-                return f"{id_b}|{id_a}"
+            id_a, id_b = str(row["GS_A_ID"]), str(row["GS_B_ID"])
+            return tuple(sorted((id_a, id_b)))
 
         filtered_network["canonical_pair"] = filtered_network.apply(
             create_canonical_pair, axis=1
@@ -270,38 +327,16 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
             high_sim = len(filtered_network[filtered_network["SIMILARITY"] >= 0.5])
             st.metric("High Similarity (≥0.5)", high_sim)
         with col3:
+            # Semantic fix: PVALUE in this dataset context seems to be score, rename it
             significant = len(
                 filtered_network[filtered_network["PVALUE"] >= 50]
-            )  # Assuming higher p-value means more significant in this context
-            st.metric("Strong Evidence (p≥50)", significant)
+            )
+            st.metric("High Evidence (Score≥50)", significant)
         with col4:
             avg_similarity = filtered_network["SIMILARITY"].mean()
             st.metric("Avg Similarity", f"{avg_similarity:.3f}")
 
-        # Interactive filters
-        st.markdown("#### 🔍 Filter Crosstalks")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            min_similarity = st.slider(
-                "Minimum Similarity",
-                min_value=0.0,
-                max_value=1.0,
-                value=0.1,
-                step=0.05,
-                help="Filter interactions by minimum similarity score",
-            )
-
-        with col2:
-            min_overlap = st.slider(
-                "Minimum Overlap",
-                min_value=int(filtered_network["OLAP"].min()),
-                max_value=int(filtered_network["OLAP"].max()),
-                value=int(filtered_network["OLAP"].min()),
-                help="Filter interactions by minimum gene overlap",
-            )
-
-        # Apply filters
+        # Apply filters passed from sidebar/main area
         filtered_display = filtered_network[
             (filtered_network["SIMILARITY"] >= min_similarity)
             & (filtered_network["OLAP"] >= min_overlap)
@@ -343,7 +378,7 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
 
         # Display the crosstalks table
         st.markdown(f"#### 🔗 Pathway Interactions ({len(display_df)} shown)")
-        st.dataframe(display_df, use_container_width=True, height=400)
+        st.dataframe(display_df, width="stretch", height=400)
 
         # Top interactions summary
         if len(display_df) > 0:
@@ -362,7 +397,7 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
         st.error(f"Error loading network data for {dataset_name}: {str(e)}")
 
 
-def create_detailed_popup(df: pd.DataFrame, dataset_name: str):
+def create_detailed_popup(df: pd.DataFrame, dataset_name: str, up_th: float, down_th: float, fdr_th: float):
     """Create a detailed popup view for a specific Mondrian map"""
     st.markdown(f"## 🔍 Detailed View: {dataset_name}")
 
@@ -374,15 +409,17 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str):
         detailed_fig = create_authentic_mondrian_map(
             df, dataset_name, maximize=True, show_pathway_ids=True
         )
+        # Use simple key to avoid duplicate key errors if rerun
         st.plotly_chart(
             detailed_fig,
-            use_container_width=True,
-            key=f"detailed_{dataset_name}",
+            width="stretch",
+            key=f"detailed_{dataset_name}_chart",
+            on_select="rerun",
             config=PLOT_CONFIG,
         )
-
+        
         st.info(
-            "💡 **Click pathway tiles** in the map above to see individual pathway details (hover disabled for clean view)"
+            "💡 **Click pathway tiles** in the map above to select them (updates main selection)"
         )
 
     with col2:
@@ -390,18 +427,18 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str):
 
         # Basic stats
         total_pathways = len(df)
-        up_reg = len(df[df["wFC"] >= 1.25])
-        down_reg = len(df[df["wFC"] <= 0.75])
-        significant = len(df[df["pFDR"] < 0.05])
+        up_reg = len(df[df["wFC"] >= up_th])
+        down_reg = len(df[df["wFC"] <= down_th])
+        significant = len(df[df["pFDR"] < fdr_th])
 
         st.metric("Total Pathways", total_pathways)
         st.metric("Up-regulated", up_reg)
         st.metric("Down-regulated", down_reg)
-        st.metric("Significant (p<0.05)", significant)
+        st.metric("Significant", significant)
 
         # Color distribution
         st.markdown("### 🎨 Color Distribution")
-        colors = get_colors(df, 1.25, 0.75)
+        colors = get_colors(df, up_th, down_th)
         color_counts = {
             "Red (Up-reg)": colors.count("red"),
             "Blue (Down-reg)": colors.count("blue"),
@@ -418,12 +455,10 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str):
         df_with_abs_fc = df.copy()
         df_with_abs_fc["abs_wFC"] = df_with_abs_fc["wFC"].abs()
         top_pathways = df_with_abs_fc.nlargest(5, "abs_wFC")[["NAME", "wFC", "pFDR"]]
-        st.dataframe(top_pathways, use_container_width=True)
+        st.dataframe(top_pathways, width="stretch")
 
 
 # Helper function for input validation
-
-
 def is_valid_csv_file(filename):
     # Only allow .csv extension and safe characters
     return bool(re.match(r"^[\w,\s-]+\.csv$", filename))
@@ -440,22 +475,16 @@ def main():
 
     # Initialize all session state variables at the start
     if "show_detailed_view" not in st.session_state:
-        st.session_state.show_detailed_view = False
+        st.session_state.show_detailed_view = None
     if "selected_pathway" not in st.session_state:
         st.session_state.selected_pathway = None
     if "clicked_pathway_info" not in st.session_state:
         st.session_state.clicked_pathway_info = None
-    if "current_dataset" not in st.session_state:
-        st.session_state.current_dataset = None
-    if "grid_layout" not in st.session_state:
-        st.session_state.grid_layout = None
     if "uploaded_files" not in st.session_state:
         st.session_state.uploaded_files = []
 
-    # Inject JS to strip native SVG tooltips created by Plotly (<title> tags)
+    # Inject JS to strip native SVG tooltips created by Plotly
     # This keeps click interactions while preventing hover pop-ups
-    import streamlit.components.v1 as components  # local import to avoid global dependency if not needed elsewhere
-
     components.html(
         """
         <script>
@@ -473,65 +502,94 @@ def main():
     )
 
     st.title("🎨 Authentic Mondrian Map Explorer")
-    st.markdown("*Faithful implementation of the bioRxiv paper algorithms*")
+    st.markdown("*Faithful implementation of the IEEE BIBM 2024 paper algorithms*")
 
     # Sidebar controls
     st.sidebar.header("📊 Dataset Configuration")
+    
+    # Threshold Controls (P2)
+    with st.sidebar.expander("⚙️ Analysis Thresholds", expanded=False):
+        up_thr = st.number_input("Up-reg threshold (wFC)", value=DEFAULTS["up"], step=0.05)
+        down_thr = st.number_input("Down-reg threshold (wFC)", value=DEFAULTS["down"], step=0.05)
+        fdr_thr = st.number_input("Significance (pFDR)", value=DEFAULTS["fdr"], step=0.01, format="%.3f")
 
-    # File upload option with security checks
-    uploaded_files = st.sidebar.file_uploader(
+    # File upload option with security checks (P0 & P1)
+    uploaded_files_raw = st.sidebar.file_uploader(
         "Upload CSV files",
         type=["csv"],
         accept_multiple_files=True,
-        help="Upload CSV files with columns: GS_ID, wFC, pFDR, x, y",
+        help="Upload CSV files with columns: GS_ID, wFC, pFDR, x, y. Max size 20MB per file.",
     )
+    
     valid_files = []
-    for file in uploaded_files or []:
-        if not is_valid_csv_file(file.name):
-            st.sidebar.warning(
-                f"File {file.name} has an invalid name or extension and was skipped."
-            )
-            continue
-        try:
-            df = pd.read_csv(file)
-            if not validate_csv_columns(df):
-                st.sidebar.warning(
-                    f"File {file.name} is missing required columns and was skipped."
-                )
+    MAX_MB = 20
+    
+    if uploaded_files_raw:
+        for file in uploaded_files_raw:
+            if file.size > MAX_MB * 1024 * 1024:
+                st.sidebar.warning(f"File {file.name} exceeds {MAX_MB} MB limit and was skipped.")
                 continue
-            valid_files.append(file)
-        except Exception as e:
-            st.sidebar.warning(f"File {file.name} could not be read: {e}")
+                
+            if not is_valid_csv_file(file.name):
+                st.sidebar.warning(f"File {file.name} has an invalid name and was skipped.")
+                continue
+                
+            try:
+                # Basic read to validate schema (caching happens later on bytes)
+                df = pd.read_csv(file)
+                if not validate_csv_columns(df):
+                    st.sidebar.warning(f"File {file.name} missing required columns {validate_csv_columns(df)}")
+                    continue
+                
+                # Rewind file for later use
+                file.seek(0)
+                valid_files.append(file)
+            except Exception as e:
+                st.sidebar.warning(f"File {file.name} could not be read: {e}")
+    
     st.session_state.uploaded_files = valid_files
+    
+    # Use validated files list
+    current_uploaded_files = st.session_state.uploaded_files
 
     # Load pathway info and DEG data
     pathway_info = load_pathway_info_cached()
     deg_data = load_deg_data()
 
     # Dataset selection (multi-select)
-    if not uploaded_files:
+    df_list = []
+    dataset_names = []
+    
+    if not current_uploaded_files:
         selected_datasets = st.sidebar.multiselect(
             "Select datasets",
             list(DATASETS.keys()),
             default=["Aggressive R1", "Baseline R1"],
         )
 
-        # Load selected datasets
-        df_list = []
-        dataset_names = []
+        # Load selected datasets (P1 - Caching)
         for dataset_name in selected_datasets:
-            df = load_dataset(DATASETS[dataset_name], pathway_info)
-            df_list.append(df)
-            dataset_names.append(dataset_name)
-    else:
-        # Use uploaded files
-        df_list = []
-        dataset_names = []
-        for uploaded_file in uploaded_files:
-            df = load_uploaded_dataset(uploaded_file, pathway_info)
-            if df is not None:
+            path = DATASETS[dataset_name]
+            if path.exists():
+                df_raw = load_csv_cached(str(path), path.stat().st_mtime)
+                df = enrich_dataset(df_raw.copy(), pathway_info)
                 df_list.append(df)
-                dataset_names.append(uploaded_file.name.replace(".csv", ""))
+                dataset_names.append(dataset_name)
+    else:
+        # Use valid uploaded files
+        for uploaded_file in current_uploaded_files:
+            # P1 - Cache by bytes content
+            file_bytes = uploaded_file.getvalue()
+            df_raw = load_uploaded_csv_cached(file_bytes)
+            
+            # Enforce numeric types (P1)
+            for col in ['wFC', 'pFDR', 'x', 'y']:
+                df_raw[col] = pd.to_numeric(df_raw[col], errors='coerce')
+            df_raw = df_raw.dropna(subset=['GS_ID','wFC','pFDR','x','y'])
+            
+            df = enrich_dataset(df_raw.copy(), pathway_info)
+            df_list.append(df)
+            dataset_names.append(uploaded_file.name.replace(".csv", ""))
 
     # Canvas Grid Configuration
     st.sidebar.header("🎯 Canvas Grid Layout")
@@ -564,9 +622,19 @@ def main():
     if len(df_list) > 0:
         # Canvas Grid Overview
         st.subheader("📋 Canvas Grid Overview")
-        st.markdown(
-            "*Click on individual map titles below to see detailed popup views*"
-        )
+        
+        # Explicit triggers for Detailed View (P0 fix)
+        st.markdown("**Filters & Views**")
+        col_btns = st.columns(len(dataset_names) + 1)
+        # We limit button columns if there are too many (e.g. max 4)
+        num_btns = min(len(dataset_names), 4)
+        btn_cols = st.columns(num_btns)
+        
+        for i, name in enumerate(dataset_names):
+            with btn_cols[i % num_btns]:
+                if st.button(f"🔍 Detail: {name}", key=f"open_detail_{i}"):
+                    st.session_state.show_detailed_view = name
+                    st.rerun()
 
         canvas_fig = create_canvas_grid(
             df_list, dataset_names, canvas_rows, canvas_cols, show_pathway_ids
@@ -577,22 +645,13 @@ def main():
         with canvas_container:
             clicked_data = st.plotly_chart(
                 canvas_fig,
-                use_container_width=True,
+                width="stretch",
                 key="canvas_chart",
                 on_select="rerun",
                 config=PLOT_CONFIG,
             )
-
-            # Handle pathway clicks for tooltip
-            if (
-                clicked_data
-                and hasattr(clicked_data, "selection")
-                and clicked_data.selection.points
-            ):
-                if len(clicked_data.selection.points) > 0:
-                    point_data = clicked_data.selection.points[0]
-                    if "customdata" in point_data and point_data["customdata"]:
-                        st.session_state.clicked_pathway_info = point_data["customdata"]
+            # Unified click handler (P1)
+            update_clicked_pathway_info(clicked_data)
 
         # Display pathway tooltip if clicked
         if st.session_state.clicked_pathway_info:
@@ -602,176 +661,44 @@ def main():
         # Add clickable functionality info
         st.markdown("### 🖱️ Interactive Maps")
         st.info(
-            "💡 **Click on pathway tiles** to see full descriptions, or click pathway table rows for gene details"
+            "💡 **Click on pathway tiles** to see full descriptions. Use the buttons above to open detailed views."
         )
 
         # Check if any detailed view should be shown
         for i, (df, name) in enumerate(zip(df_list, dataset_names)):
             if st.session_state.show_detailed_view == name:
                 st.markdown("---")
-                create_detailed_popup(df, name)
-                if st.button("❌ Close Detailed View", key=f"close_{i}"):
+                create_detailed_popup(df, name, up_thr, down_thr, fdr_thr)
+                if st.button("❌ Close Detailed View", key=f"close_dt_{i}"):
                     st.session_state.show_detailed_view = None
                     st.rerun()
 
         # Full-size individual maps
         if show_full_size:
             st.subheader("🔍 Full-Size Authentic Mondrian Maps")
-            st.markdown(
-                "*Individual maps using the exact 3-stage algorithm from the notebooks*"
-            )
-
-            if maximize_maps:
-                st.info(
-                    "🔍 **Maximized View**: Larger maps with enhanced details for better analysis"
-                )
-
+            
             # Create columns for full-size maps
-            if len(df_list) == 1:
-                full_fig = create_authentic_mondrian_map(
-                    df_list[0],
-                    dataset_names[0],
-                    maximize=maximize_maps,
-                    show_pathway_ids=show_pathway_ids,
-                )
-                clicked_data = st.plotly_chart(
-                    full_fig,
-                    use_container_width=True,
-                    key=f"full_map_0",
-                    on_select="rerun",
-                    config=PLOT_CONFIG,
-                )
-
-                # Handle pathway clicks for tooltip
-                if (
-                    clicked_data
-                    and hasattr(clicked_data, "selection")
-                    and clicked_data.selection.points
-                ):
-                    if len(clicked_data.selection.points) > 0:
-                        point_data = clicked_data.selection.points[0]
-                        if "customdata" in point_data and point_data["customdata"]:
-                            st.session_state.clicked_pathway_info = point_data[
-                                "customdata"
-                            ]
-
-                st.info(
-                    "💡 **Click pathway tiles above** to see full descriptions (hover disabled for clean view)"
-                )
-            else:
-                # Show maps in pairs or single column if maximized
-                cols_per_row = 1 if maximize_maps else 2
-
-                for i in range(0, len(df_list), cols_per_row):
-                    if cols_per_row == 1:
-                        # Single column for maximized view
-                        full_fig = create_authentic_mondrian_map(
-                            df_list[i],
-                            dataset_names[i],
-                            maximize=maximize_maps,
-                            show_pathway_ids=show_pathway_ids,
-                        )
-                        clicked_data = st.plotly_chart(
-                            full_fig,
-                            use_container_width=True,
-                            key=f"full_map_{i}",
-                            on_select="rerun",
-                            config=PLOT_CONFIG,
-                        )
-
-                        # Handle pathway clicks for tooltip
-                        if (
-                            clicked_data
-                            and hasattr(clicked_data, "selection")
-                            and clicked_data.selection.points
-                        ):
-                            if len(clicked_data.selection.points) > 0:
-                                point_data = clicked_data.selection.points[0]
-                                if (
-                                    "customdata" in point_data
-                                    and point_data["customdata"]
-                                ):
-                                    st.session_state.clicked_pathway_info = point_data[
-                                        "customdata"
-                                    ]
-
-                        st.info(
-                            "💡 **Click pathway tiles** for descriptions (hover disabled)"
-                        )
-                    else:
-                        # Two columns for normal view
-                        cols = st.columns(2)
-
-                        with cols[0]:
-                            full_fig = create_authentic_mondrian_map(
-                                df_list[i],
-                                dataset_names[i],
+            cols_per_row = 1 if maximize_maps else 2
+            
+            for i in range(0, len(df_list), cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j in range(cols_per_row):
+                    if i + j < len(df_list):
+                        with cols[j]:
+                            fig = create_authentic_mondrian_map(
+                                df_list[i+j],
+                                dataset_names[i+j],
                                 maximize=maximize_maps,
                                 show_pathway_ids=show_pathway_ids,
                             )
-                            clicked_data = st.plotly_chart(
-                                full_fig,
-                                use_container_width=True,
-                                key=f"full_map_{i}",
+                            c_data = st.plotly_chart(
+                                fig,
+                                width="stretch",
+                                key=f"full_map_{i+j}",
                                 on_select="rerun",
                                 config=PLOT_CONFIG,
                             )
-
-                            # Handle pathway clicks for tooltip
-                            if (
-                                clicked_data
-                                and hasattr(clicked_data, "selection")
-                                and clicked_data.selection.points
-                            ):
-                                if len(clicked_data.selection.points) > 0:
-                                    point_data = clicked_data.selection.points[0]
-                                    if (
-                                        "customdata" in point_data
-                                        and point_data["customdata"]
-                                    ):
-                                        st.session_state.clicked_pathway_info = (
-                                            point_data["customdata"]
-                                        )
-
-                            st.info(
-                                "💡 **Click tiles** for descriptions (hover disabled)"
-                            )
-
-                        if i + 1 < len(df_list):
-                            with cols[1]:
-                                full_fig = create_authentic_mondrian_map(
-                                    df_list[i + 1],
-                                    dataset_names[i + 1],
-                                    maximize=maximize_maps,
-                                    show_pathway_ids=show_pathway_ids,
-                                )
-                                clicked_data = st.plotly_chart(
-                                    full_fig,
-                                    use_container_width=True,
-                                    key=f"full_map_{i+1}",
-                                    on_select="rerun",
-                                    config=PLOT_CONFIG,
-                                )
-
-                                # Handle pathway clicks for tooltip
-                                if (
-                                    clicked_data
-                                    and hasattr(clicked_data, "selection")
-                                    and clicked_data.selection.points
-                                ):
-                                    if len(clicked_data.selection.points) > 0:
-                                        point_data = clicked_data.selection.points[0]
-                                        if (
-                                            "customdata" in point_data
-                                            and point_data["customdata"]
-                                        ):
-                                            st.session_state.clicked_pathway_info = (
-                                                point_data["customdata"]
-                                            )
-
-                                st.info(
-                                    "💡 **Click tiles** for descriptions (hover disabled)"
-                                )
+                            update_clicked_pathway_info(c_data)
 
         # Color legend and info
         if show_legend:
@@ -781,45 +708,34 @@ def main():
                 st.subheader("🎨 Color Legend")
                 legend_fig = create_color_legend()
                 st.plotly_chart(
-                    legend_fig, use_container_width=True, config=PLOT_CONFIG
+                    legend_fig, width="stretch", config=PLOT_CONFIG
                 )
 
             with col2:
                 st.subheader("ℹ️ Authentic Algorithm")
                 st.markdown(
-                    """
-                **Faithful Implementation of bioRxiv Paper:**
+                    f"""
+                **Faithful Implementation of IEEE BIBM 2024 Paper:**
                 
                 **3-Stage Generation Process:**
                 1. **Grid System**: 1001×1001 canvas with 20×20 block grid
                 2. **Block Placement**: Pathways as rectangles sized by fold change
                 3. **Line Generation**: Authentic Mondrian-style grid lines
                 
-                **Key Features:**
-                - Exact `GridSystem`, `Block`, `Line`, `Corner` classes from notebooks
-                - Authentic color scheme: Red/Blue/Yellow/Black/White
-                - Area scaling: `abs(log2(wFC)) * 4000`
-                - Proper line width and adjustments
-                - Rectangle placement based on pathway coordinates
-                
-                **Algorithm Parameters:**
-                - Canvas: 1001×1001 pixels
-                - Block size: 20×20 pixels  
-                - Line width: 5 pixels
-                - Area scalar: 4000
-                - Up-regulation threshold: ≥1.25
-                - Down-regulation threshold: ≤0.75
+                **Parameters:**
+                - Up-regulation threshold: ≥{up_thr}
+                - Down-regulation threshold: ≤{down_thr}
                 """
                 )
 
         # Dataset Statistics
         st.subheader("📈 Dataset Statistics")
-        stats_cols = st.columns(len(df_list))
+        stats_cols = st.columns(min(len(df_list), 4))
         for i, (df, name) in enumerate(zip(df_list, dataset_names)):
-            with stats_cols[i]:
+            with stats_cols[i % 4]:
                 st.metric(f"{name} - Total", len(df))
-                up_reg = len(df[df["wFC"] >= 1.25])
-                down_reg = len(df[df["wFC"] <= 0.75])
+                up_reg = len(df[df["wFC"] >= up_thr])
+                down_reg = len(df[df["wFC"] <= down_thr])
                 st.metric("Up-regulated", up_reg)
                 st.metric("Down-regulated", down_reg)
 
@@ -831,7 +747,6 @@ def main():
             tabs = st.tabs(dataset_names)
             for i, (df, name) in enumerate(zip(df_list, dataset_names)):
                 with tabs[i]:
-                    # Add color coding to the dataframe
                     df_display = df.copy()
                     df_display["Color"] = df_display.apply(
                         lambda row: get_mondrian_color_description(
@@ -840,7 +755,6 @@ def main():
                         axis=1,
                     )
 
-                    # Make pathway table clickable
                     event = st.dataframe(
                         df_display[
                             [
@@ -851,16 +765,14 @@ def main():
                                 "Color",
                                 "Description",
                                 "Ontology",
-                                "Disease",
                             ]
                         ].round(4),
-                        use_container_width=True,
+                        width="stretch",
                         height=400,
                         on_select="rerun",
                         selection_mode="single-row",
                     )
 
-                    # Handle row selection for gene details
                     if event.selection and len(event.selection.rows) > 0:
                         selected_row = event.selection.rows[0]
                         selected_pathway_id = df_display.iloc[selected_row]["GS_ID"]
@@ -873,7 +785,6 @@ def main():
                     axis=1,
                 )
 
-                # Make pathway table clickable
                 event = st.dataframe(
                     df_display[
                         [
@@ -884,16 +795,14 @@ def main():
                             "Color",
                             "Description",
                             "Ontology",
-                            "Disease",
                         ]
                     ].round(4),
-                    use_container_width=True,
+                    width="stretch",
                     height=400,
                     on_select="rerun",
                     selection_mode="single-row",
                 )
 
-                # Handle row selection for gene details
                 if event.selection and len(event.selection.rows) > 0:
                     selected_row = event.selection.rows[0]
                     selected_pathway_id = df_display.iloc[selected_row]["GS_ID"]
@@ -902,7 +811,7 @@ def main():
         # Display gene details for selected pathway
         if st.session_state.selected_pathway:
             st.markdown("---")
-            display_pathway_genes(st.session_state.selected_pathway, deg_data)
+            display_pathway_genes(st.session_state.selected_pathway, deg_data, up_thr)
 
             if st.button("❌ Close Gene Details"):
                 st.session_state.selected_pathway = None
@@ -911,8 +820,28 @@ def main():
         # Section 3: Pathway Crosstalks
         st.subheader("🔗 Pathway Crosstalks")
         st.markdown("*Pathway-to-pathway interaction details by condition*")
+        
+        # Crosstalk Filters
+        col1, col2 = st.columns(2)
+        with col1:
+            min_similarity = st.slider(
+                "Minimum Similarity",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.1,
+                step=0.05,
+                help="Filter interactions by minimum similarity score",
+            )
+        with col2:
+            min_overlap = st.slider(
+                "Minimum Overlap",
+                min_value=1,
+                max_value=20, # Dynamic range ideal but static is safe for init
+                value=2,
+                help="Filter interactions by minimum gene overlap",
+            )
 
-        display_pathway_crosstalks(df_list, dataset_names)
+        display_pathway_crosstalks(df_list, dataset_names, min_similarity, min_overlap)
 
     else:
         st.info("👆 Please select datasets or upload CSV files to begin visualization")
@@ -929,25 +858,6 @@ def main():
             }
         )
         st.dataframe(example_df)
-
-        st.subheader("🎯 Authentic Implementation")
-        st.markdown(
-            """
-        **Faithful to bioRxiv Paper Algorithm:**
-        
-        This implementation uses the exact same classes and methods from the research notebooks:
-        - `GridSystem(1001, 1001, 20, 20)` - Authentic grid system
-        - `Block`, `Line`, `Corner` classes with exact parameters
-        - 3-stage generation process as described in the paper
-        - Authentic color mapping and area scaling
-        - Proper line width, adjustments, and positioning
-        
-        **Canvas Grid System:**
-        - Level 1: Canvas arranges multiple Mondrian maps
-        - Level 2: Each map uses authentic algorithm from notebooks
-        - Users can view overview or full-size individual maps
-        """
-        )
 
 
 if __name__ == "__main__":
