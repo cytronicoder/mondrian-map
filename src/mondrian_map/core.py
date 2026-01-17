@@ -348,7 +348,6 @@ class GridSystem:
 
         scale = 1.0
         rectangles = []
-        areas_scaled = [area * scale for area in target_areas]
 
         for _ in range(max_scale_iters):
             areas_scaled = [area * scale for area in target_areas]
