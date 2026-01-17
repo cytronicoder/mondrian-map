@@ -438,10 +438,6 @@ def _normalize_color_name(color_value: str) -> str:
     """Normalize color strings/hex values to red/blue/yellow/black labels."""
     normalized = str(color_value).lower()
     color_map = {
-        "red": "red",
-        "blue": "blue",
-        "yellow": "yellow",
-        "black": "black",
         Colors.RED.value.lower(): "red",
         Colors.BLUE.value.lower(): "blue",
         Colors.YELLOW.value.lower(): "yellow",
@@ -493,18 +489,10 @@ def _block_ports(
         primary = "bottom" if dy >= 0 else "top"
         secondary = ["left", "right"]
 
-    ordered = (
-        [primary]
-        + secondary
-        + [key for key in ["left", "right", "top", "bottom"] if key != primary]
-    )
-    seen = set()
-    result = []
-    for key in ordered:
-        if key not in seen:
-            seen.add(key)
-            result.append(ports[key])
-    return result
+    # Build ordered port list: primary first, then secondary, then remaining
+    all_keys = ["left", "right", "top", "bottom"]
+    ordered = [primary] + secondary + [key for key in all_keys if key != primary and key not in secondary]
+    return [ports[key] for key in ordered]
 
 
 def _segment_intersects_rect(
@@ -542,11 +530,16 @@ def _path_hits_obstacles(
     ignore_rects: List[Dict[str, float]],
 ) -> bool:
     """Return True if any segment intersects obstacle interiors (excluding endpoints)."""
+    # Build a set of canonical rectangle representations for fast, content-based ignore checks.
+    ignore_rect_keys = {
+        (r["left"], r["right"], r["top"], r["bottom"]) for r in ignore_rects
+    }
     for i in range(len(path) - 1):
         a = path[i]
         b = path[i + 1]
         for rect in obstacles:
-            if rect in ignore_rects:
+            rect_key = (rect["left"], rect["right"], rect["top"], rect["bottom"])
+            if rect_key in ignore_rect_keys:
                 continue
             if _segment_intersects_rect(a, b, rect):
                 return True
@@ -563,14 +556,7 @@ def _simplify_path(
             or abs(point[1] - simplified[-1][1]) > epsilon
         ):
             simplified.append(point)
-    cleaned = [simplified[0]] if simplified else []
-    for point in simplified[1:]:
-        if (
-            abs(point[0] - cleaned[-1][0]) > epsilon
-            or abs(point[1] - cleaned[-1][1]) > epsilon
-        ):
-            cleaned.append(point)
-    return cleaned
+    return simplified
 
 
 def route_manhattan(
@@ -1031,7 +1017,10 @@ def create_authentic_mondrian_map(
             gs_b = str(row["GS_B_ID"])[-4:]
             key = tuple(sorted((gs_a, gs_b)))
             if "PVALUE" in row:
-                score = -float(row["PVALUE"])
+                # Use -log(pvalue) for semantically correct scoring
+                # Smaller p-values should yield higher scores
+                pval = float(row["PVALUE"])
+                score = -np.log(pval + 1e-300) if pval > 0 else 300.0
             elif "SIMILARITY" in row:
                 score = float(row["SIMILARITY"])
             else:
@@ -1073,14 +1062,11 @@ def create_authentic_mondrian_map(
             b.color.value if hasattr(b.color, "value") else str(b.color)
         )
 
-        s_significant = s_color != "black"
-        b_significant = b_color != "black"
-
         if s_color == "red" and b_color == "red":
             edge_color = Colors.RED.value
         elif s_color == "blue" and b_color == "blue":
             edge_color = Colors.BLUE.value
-        elif s_significant and b_significant:
+        elif s_color != "black" and b_color != "black":
             edge_color = Colors.YELLOW.value
         elif show_insignificant_edges:
             edge_color = no_relations_color
@@ -1184,14 +1170,12 @@ def create_authentic_mondrian_map(
         marker_size = max(6, min(18, int(min_side * 0.6)))
 
         # Attach click metadata via invisible markers for Streamlit selection.
-        # Click target markers - keep size within [6,18] bounds
-        click_marker_size = min(18, marker_size + 6)
         click_traces.append(
             go.Scatter(
                 x=[cx],
                 y=[cy],
                 mode="markers",
-                marker=dict(size=click_marker_size, opacity=0),
+                marker=dict(size=marker_size, opacity=0),
                 customdata=[payload],
                 hoverinfo="skip",
                 showlegend=False,
@@ -1203,7 +1187,15 @@ def create_authentic_mondrian_map(
             text_color = (
                 "white" if normalized_color in ["red", "blue", "black"] else "black"
             )
-            label_y = block.top_left_p[1] + min(14, height * 0.25)
+            # NOTE: Label visibility threshold
+            # Historically, labels were shown when min_side >= 30.0.
+            # This has been made configurable via `label_min_side`, which by default
+            # is set to 45.0. As a result, tiles with 30 <= min_side < 45 will no longer
+            # display labels unless the caller explicitly passes a lower `label_min_side`
+            # value (e.g., 30.0 to preserve the previous behavior).
+            
+            # Use tile center for y-coordinate to ensure adequate padding from tile edges
+            label_y = cy
             font_size = max(8, min(12, int(min_side / 6)))
             annotations.append(
                 dict(
