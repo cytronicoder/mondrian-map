@@ -47,39 +47,49 @@ PATHWAY_DESCRIPTION_INSTRUCTION = (
 
 @dataclass
 class EmbeddingConfig:
-    """Configuration for embedding generation."""
+    """Configuration parameters for neural embedding generation.
 
-    # Model settings
-    model_name: str = DEFAULT_SENTENCE_TRANSFORMER
-    model_type: str = "sentence_transformer"  # or "llm2vec"
-    batch_size: int = DEFAULT_BATCH_SIZE
-    normalize: bool = True
-    max_length: int = 512
-
-    # Prompt settings
-    prompt_type: str = "pathway_description_summary"
-    max_genes: int = DEFAULT_MAX_GENES
-
-    # LLM2Vec specific (optional)
-    llm2vec_model: str = "McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp"
-    llm2vec_postfix: str = "supervised"
-    pooling_mode: str = "mean"
-
-    # Device settings
-    device: Optional[str] = None  # None = auto-detect
+    Attributes
+    ----------
+    model_name : str
+        Identifier of the pre-trained embedding model.
+    model_type : {'sentence_transformer', 'llm2vec'}
+        Embedding model architecture.
+    batch_size : int
+        Number of samples processed in parallel during encoding.
+    normalize : bool
+        Whether to apply L2 normalization to embeddings.
+    max_length : int
+        Maximum token sequence length for model input.
+    prompt_type : str
+        Template for constructing pathway descriptions.
+    max_genes : int
+        Maximum genes included in pathway prompts.
+    device : str, optional
+        Compute device ('cpu', 'cuda', or None for auto-detection).
+    """
 
 
 class EmbeddingGenerator:
-    """
-    Generate embeddings for pathways using various language models.
+    """Neural pathway embedding generator supporting multiple model architectures.
+
+    Encodes textual pathway descriptions to fixed-dimensional vector embeddings
+    suitable for dimensionality reduction and visualization.
 
     Supports:
-    - SentenceTransformers (default, lightweight)
-    - LLM2Vec (optional, requires additional dependencies)
+    - SentenceTransformers: Lightweight, pre-trained encoders for semantic similarity
+    - LLM2Vec: Large language model-based encoders with instruction-tuning
 
-    Example:
-        >>> gen = EmbeddingGenerator(model_name="all-mpnet-base-v2")
-        >>> embeddings = gen.embed_texts(["Apoptosis pathway", "Cell cycle regulation"])
+    Parameters
+    ----------
+    config : EmbeddingConfig, optional
+        Embedding configuration. Uses defaults if not provided.
+
+    Example
+    -------
+    >>> from src.mondrian_map.embeddings import EmbeddingGenerator
+    >>> gen = EmbeddingGenerator()
+    >>> embeddings = gen.embed_texts(['Apoptosis', 'Cell cycle'])
     """
 
     def __init__(self, config: Optional[EmbeddingConfig] = None):

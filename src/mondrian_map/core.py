@@ -30,30 +30,31 @@ dn_th = abs(1 - (up_th - 1))
 
 
 def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
-    """Check if two rectangles intersect, with optional padding.
+    """Determine if two rectangular regions have interior overlap.
 
-    Uses strict intersection semantics: rectangles that only share an edge
-    or corner point (touching but not overlapping) are NOT considered
-    intersecting. Only interior overlap is detected.
+    Uses strict intersection semantics: rectangles that only share an edge or
+    corner (touching but not overlapping) are NOT considered intersecting.
+    Only regions with non-zero interior overlap are detected.
 
     Parameters
     ----------
     r1, r2 : List[Tuple[float, float]]
-        Rectangles as [(x0, y0), (x1, y1)]
-    padding : float
-        Additional spacing to add around rectangles before checking intersection
+        Rectangular regions as [(x_min, y_min), (x_max, y_max)]
+    padding : float, optional
+        Uniform spacing (in canvas units) added around each rectangle before
+        overlap detection. Default is 0.0 (no padding).
 
     Returns
     -------
     bool
-        True if rectangles have interior overlap, False if only touching or separate
+        True if rectangles have non-zero interior overlap; False otherwise.
 
     Examples
     --------
     >>> rect_intersects([(0, 0), (10, 10)], [(10, 10), (20, 20)])
-    False  # Edge-touching, no interior overlap
+    False  # Edge-adjacent; no interior overlap
     >>> rect_intersects([(0, 0), (10, 10)], [(5, 5), (15, 15)])
-    True  # Interior overlap
+    True   # Interior overlap detected
     """
     (x0a, y0a), (x1a, y1a) = r1
     (x0b, y0b), (x1b, y1b) = r2
@@ -80,22 +81,23 @@ def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
 
 
 def count_overlaps(rects: list, padding: float = 0.0) -> int:
-    """
-    Count the number of overlapping rectangle pairs.
+    """Count pairwise overlapping rectangles in a collection.
+
+    Computes the number of unordered pairs of rectangles that have non-zero
+    interior overlap, optionally with a minimum separation distance.
 
     Parameters
     ----------
-    rects : list
-        List of rectangles in the format returned by ``fill_blocks_around_point``,
-        where each rectangle is represented as ``((x0, y0), (x1, y1))``.
+    rects : list of tuple
+        Rectangles in format [(x_min, y_min), (x_max, y_max)].
     padding : float, optional
-        Minimum separation distance. A positive value expands each rectangle
-        by ``padding`` in all directions before checking for overlap.
+        Minimum separation distance (canvas units). Each rectangle is expanded
+        by this amount before overlap detection. Default is 0.0.
 
     Returns
     -------
     int
-        The number of unordered pairs of rectangles that overlap.
+        Number of overlapping rectangle pairs.
 
     Notes
     -----

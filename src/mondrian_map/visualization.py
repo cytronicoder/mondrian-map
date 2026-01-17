@@ -20,7 +20,18 @@ from .data_processing import prepare_pathway_data
 
 
 def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
-    """Find the closest corner of block_a to block_b's center"""
+    """Identify the nearest corner of one block to another block's centroid.
+
+    Uses Manhattan distance to locate the corner of block_a that minimizes
+    the distance to block_b's center point, enabling optimal line routing.
+
+    Args:
+        block_a: Source pathway block
+        block_b: Target pathway block for connection
+
+    Returns:
+        Corner instance of block_a closest to block_b's center
+    """
     min_distance = float("inf")
     closest_corner = None
 
@@ -41,7 +52,19 @@ def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
 
 
 def get_furthest_connector(cp1: Corner, cp2: Corner, center: Point) -> Point:
-    """Get the furthest connector point between two corners"""
+    """Select the optimal connector point for pathways with maximum separation.
+
+    Evaluates two candidate connector points (L-shaped junctions) and selects
+    the one that maximizes distance from the center, reducing visual clutter.
+
+    Args:
+        cp1: First corner of potential connection
+        cp2: Second corner of potential connection
+        center: Central reference point for layout
+
+    Returns:
+        Point instance representing the selected connector location
+    """
     p = Point(cp1.point.x, cp2.point.y)
     q = Point(cp2.point.x, cp1.point.y)
     if euclidean_distance_point(
@@ -53,7 +76,19 @@ def get_furthest_connector(cp1: Corner, cp2: Corner, center: Point) -> Point:
 
 
 def get_manhattan_line_color(block_a: Block, block_b: Block) -> Colors:
-    """Determine the color of Manhattan lines between blocks"""
+    """Determine connection line color based on block pair regulation state.
+
+    Assigns consistent coloring to pathway relationship edges reflecting the
+    combined regulation state: red for co-upregulated, blue for co-downregulated,
+    yellow for mixed or neutral interactions.
+
+    Args:
+        block_a: First pathway block
+        block_b: Second pathway block
+
+    Returns:
+        Colors enum value for the inter-block connection line
+    """
     if block_a.color == Colors.RED and block_b.color == Colors.RED:
         return Colors.RED
     elif block_a.color == Colors.BLUE and block_b.color == Colors.BLUE:
@@ -65,7 +100,21 @@ def get_manhattan_line_color(block_a: Block, block_b: Block) -> Colors:
 def get_manhattan_lines_2(
     corner_a: Corner, corner_b: Corner, connector: Point, color: Colors
 ) -> List[Line]:
-    """Generate Manhattan-style connection lines between corners"""
+    """Generate orthogonal (Manhattan distance) connection lines between pathway blocks.
+
+    Constructs a two-segment path connecting corners using axis-aligned routing,
+    with adaptive line placement based on corner positions to minimize overlap
+    and maintain visual clarity in dense pathway relationship networks.
+
+    Args:
+        corner_a: Starting corner of the connection
+        corner_b: Ending corner of the connection
+        connector: Intermediate junction point for complex pathways
+        color: Color assignment for the connection line
+
+    Returns:
+        List of Line objects representing the pathway relationship visualization
+    """
     if corner_a.point.x == corner_b.point.x and corner_a.point.y != corner_b.point.y:
         if corner_a.position in [CornerPos.TOP_LEFT, CornerPos.BOTTOM_LEFT]:
             line_v = Line(

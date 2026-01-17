@@ -36,8 +36,6 @@ class PipelineOutputs:
     pathway_info: Dict[str, Any]
     config: PipelineConfig
     manifest: Dict[str, Any]
-
-    # Optional visualization outputs
     figure_path: Optional[Path] = None
     html_path: Optional[Path] = None
 
@@ -104,14 +102,12 @@ class MondrianMapPipeline:
         self.config = config or PipelineConfig()
         self.cache_info = CacheInfo()
 
-        # Setup logging
         log_level = logging.DEBUG if self.config.debug else logging.INFO
         logging.basicConfig(
             level=log_level,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
-        # Initialize components lazily
         self._pager_client = None
 
     @property
@@ -160,11 +156,9 @@ class MondrianMapPipeline:
 
         logger.info(f"Starting Mondrian Map pipeline (use_cache={use_cache})")
 
-        # Ensure output directories
         ensure_directory(output_dir)
         ensure_directory(output_dir / "figures")
 
-        # Step 1: Load cached entities if available
         entities_cache_path = (
             Path(self.config.data_dir)
             / "pathways_prepared_for_visualization"
@@ -174,12 +168,10 @@ class MondrianMapPipeline:
         if use_cache and self._check_cached_entities(entities_cache_path):
             return self._run_from_cache(output_dir)
 
-        # Full pipeline run
         return self._run_full_pipeline(output_dir, use_cache)
 
     def _check_cached_entities(self, path: Path) -> bool:
         """Check if cached entities are available."""
-        # Check for prepared visualization data
         viz_dir = Path(self.config.data_dir) / "pathways_prepared_for_visualization"
         if viz_dir.exists():
             csv_files = list(viz_dir.glob("*.csv"))
@@ -192,20 +184,16 @@ class MondrianMapPipeline:
         logger.info("Running pipeline from cached artifacts")
         self.cache_info.entities_from_cache = True
 
-        # Load pathway info
         self._log_step(1, "Loading pathway information")
         pathway_info = self._load_pathway_info()
 
-        # Load cached entities
         self._log_step(2, "Loading cached entities")
         viz_dir = Path(self.config.data_dir) / "pathways_prepared_for_visualization"
 
-        # Find appropriate CSV file
         csv_files = list(viz_dir.glob("*.csv"))
         if not csv_files:
             raise FileNotFoundError(f"No CSV files found in {viz_dir}")
 
-        # Use first matching file or specific case
         entities_path = csv_files[0]
         for f in csv_files:
             if self.config.case_study.name.lower() in f.name.lower():
@@ -215,27 +203,21 @@ class MondrianMapPipeline:
         entities_df = pd.read_csv(entities_path)
         logger.info(f"Loaded {len(entities_df)} entities from {entities_path}")
 
-        # Enrich with pathway info
         if pathway_info:
             entities_df = self._enrich_entities(entities_df, pathway_info)
 
-        # Load cached network/relations
         self._log_step(3, "Loading cached relations")
         relations_df = self._load_cached_relations()
 
-        # Load cached embeddings
         self._log_step(4, "Loading cached embeddings")
         embeddings, pathway_ids = self._load_cached_embeddings(entities_df)
 
-        # Generate coordinates from entities
         coordinates = entities_df[["x", "y"]].values
 
-        # Skip steps 5-7 (already have coordinates from cache)
         self._log_step(5, "Skipping PAGER calls (using cache)")
         self._log_step(6, "Skipping embedding generation (using cache)")
         self._log_step(7, "Skipping t-SNE projection (using cache)")
 
-        # Step 8: Filter relations to available pathways
         self._log_step(8, "Filtering relations to available pathways")
         if len(relations_df) > 0:
             available_ids = set(entities_df["GS_ID"])
@@ -244,17 +226,14 @@ class MondrianMapPipeline:
                 & relations_df["GS_B_ID"].isin(available_ids)
             ]
 
-        # Step 9: Save outputs
         self._log_step(9, "Saving outputs")
         self._save_outputs(entities_df, relations_df, output_dir)
 
-        # Step 10: Generate visualization
         self._log_step(10, "Generating visualization")
         fig_path, html_path = self._generate_visualization(
             entities_df, relations_df, output_dir, pathway_info
         )
 
-        # Build manifest
         manifest = self._build_manifest(output_dir)
 
         return PipelineOutputs(
@@ -281,25 +260,21 @@ class MondrianMapPipeline:
         self._log_step(1, "Loading data and selecting DEGs")
         fc_df, deg_sets = self._compute_degs()
 
-        # Step 2: Run PAGER GNPA
         self._log_step(2, "Running PAGER GNPA analysis")
         pag_results = self._run_gnpa(deg_sets)
 
-        # Step 3: Get pathway members and RP scores
         self._log_step(3, "Getting pathway ranked genes")
-        # Combined PAG IDs from all conditions
         all_pag_ids = set()
         for pag_df in pag_results.values():
             all_pag_ids.update(pag_df["GS_ID"].tolist())
 
-        # Step 4: Compute pathway-level wFC
         self._log_step(4, "Computing pathway weighted fold changes")
         wfc_results = {}
         for condition, pag_df in pag_results.items():
             fc_col = f"{condition.split('_')[0]}_{condition.split('_')[1]}/TP"
             wfc_df = compute_pathway_wfc_batch(
                 list(pag_df["GS_ID"].unique()),
-                pd.DataFrame(),  # Will fetch members per pathway
+                pd.DataFrame(),
                 fc_df,
                 fc_col,
                 self.pager_client,
@@ -308,7 +283,7 @@ class MondrianMapPipeline:
             )
             wfc_results[condition] = wfc_df
 
-        # Step 5: Build pathway prompts
+        self._log_step(5, "Building pathway prompts")
         self._log_step(5, "Building pathway prompts")
         pathway_info = self._load_pathway_info()
         prompts = build_prompts(

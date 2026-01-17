@@ -18,7 +18,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Schema definitions for validation
 ENTITIES_SCHEMA = {
     "required_columns": ["GS_ID", "wFC", "pFDR", "x", "y"],
     "optional_columns": ["NAME", "Description", "Ontology", "Disease"],
@@ -81,25 +80,21 @@ def validate_entities_schema(
     """
     required_cols = ["GS_ID", "wFC", "pFDR", "x", "y"]
 
-    # Check required columns
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-    # Check dtypes for numeric columns
     for col in ["wFC", "pFDR", "x", "y"]:
         if col in df.columns:
             if not pd.api.types.is_numeric_dtype(df[col]):
                 raise ValueError(f"Invalid dtype for column '{col}': expected numeric")
 
-    # Check for NaN values in coordinates
     if df["x"].isna().any() or df["y"].isna().any():
         if strict:
             raise ValueError("NaN values found in coordinate columns")
         else:
             warnings.warn("NaN values found in coordinate columns", UserWarning)
 
-    # Check coordinate ranges
     if (
         (df["x"] < 0).any()
         or (df["x"] > 1).any()
@@ -111,11 +106,9 @@ def validate_entities_schema(
         else:
             warnings.warn("Coordinates outside [0, 1] range", UserWarning)
 
-    # Check for negative pFDR values
     if (df["pFDR"] < 0).any():
         raise ValueError("pFDR contains negative values")
 
-    # Check for duplicate GS_ID
     if df["GS_ID"].duplicated().any():
         if strict:
             raise ValueError("Duplicate GS_ID values found")
@@ -144,7 +137,6 @@ def validate_dataframe(
     Raises:
         SchemaValidationError: If validation fails
     """
-    # Check required columns
     required = schema.get("required_columns", [])
     missing = [col for col in required if col not in df.columns]
     if missing:
@@ -153,7 +145,6 @@ def validate_dataframe(
             f"Available columns: {list(df.columns)}"
         )
 
-    # Apply dtype conversions
     dtypes = schema.get("dtypes", {})
     for col, dtype in dtypes.items():
         if col in df.columns:
@@ -208,16 +199,13 @@ def load_expression_matrix(
     df = pd.read_csv(path, sep=sep)
 
     if index_col not in df.columns:
-        # Try first column as index
         df = pd.read_csv(path, sep=sep, index_col=0)
         logger.warning(f"Column '{index_col}' not found, using first column as index")
     else:
         df = df.set_index(index_col)
 
-    # Fill NaN values
     df = df.fillna(fillna)
 
-    # Filter by minimum value if specified
     if min_value is not None:
         original_count = len(df)
         df = df.loc[(df >= min_value).all(axis=1)]

@@ -18,16 +18,13 @@ logger = logging.getLogger(__name__)
 class ThresholdConfig:
     """Thresholds for DEG selection and pathway classification."""
 
-    # DEG selection thresholds
     up_regulation_threshold: float = 1.5
     down_regulation_threshold: float = 0.5
     expression_min_value: float = 0.001
 
-    # Pathway significance thresholds
     significance_threshold: float = 0.05
     fdr_threshold: float = 0.5
 
-    # Visualization thresholds
     color_up_threshold: float = 1.25
     color_down_threshold: float = 0.75
 
@@ -36,16 +33,13 @@ class ThresholdConfig:
 class PagerConfig:
     """Configuration for PAGER API calls."""
 
-    # Data source
     source: str = "WikiPathway_2021"
     pag_type: str = "P"
     organism: str = "All"
 
-    # Size filters
     min_size: int = 1
     max_size: int = 2000
 
-    # Similarity and overlap
     similarity: float = 0.05
     overlap: int = 1
     ncoco: float = 0
@@ -54,12 +48,10 @@ class PagerConfig:
     pvalue: float = 0.05
     fdr: float = 0.5
 
-    # Rate limiting
     rate_limit: float = 1.0
     max_retries: int = 3
     retry_delay: float = 5.0
 
-    # Caching
     use_cache: bool = True
     cache_dir: str = "cache/pager"
 
@@ -68,28 +60,22 @@ class PagerConfig:
 class EmbeddingConfig:
     """Configuration for embedding generation."""
 
-    # Model selection
     model_name: str = "all-mpnet-base-v2"
-    model_type: str = "sentence_transformer"  # or "llm2vec"
+    model_type: str = "sentence_transformer"
 
-    # Prompt settings
     prompt_type: str = "pathway_description_summary"
     max_genes: int = 100
 
-    # Encoding settings
     batch_size: int = 32
     normalize: bool = True
     max_length: int = 512
 
-    # LLM2Vec specific
     llm2vec_model: str = "McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp"
     llm2vec_postfix: str = "supervised"
     pooling_mode: str = "mean"
 
-    # Device
     device: Optional[str] = None
 
-    # Caching
     cache_dir: str = "cache/embeddings"
 
 
@@ -104,13 +90,11 @@ class TSNEConfig:
     random_state: int = 42
     init: str = "pca"
 
-    # Normalization
     normalize_coords: bool = True
     canvas_size: float = 1000.0
     range_min: float = 0.05
     range_max: float = 0.95
 
-    # Caching
     cache_dir: str = "cache/tsne"
 
 
@@ -118,26 +102,21 @@ class TSNEConfig:
 class VisualizationConfig:
     """Configuration for Mondrian Map visualization."""
 
-    # Canvas settings
     width: int = 1000
     height: int = 1000
     block_width: int = 100
     block_height: int = 100
 
-    # Display settings
     show_ids: bool = False
-    id_format: str = "last4"  # "last4", "full", or "name"
+    id_format: str = "last4"
     show_hover: bool = True
     maximize: bool = False
 
-    # Relations/edges
-    max_relations_per_node: Optional[int] = 2  # None = unlimited
+    max_relations_per_node: Optional[int] = 2
     show_relations: bool = True
 
-    # Area scaling
     area_scalar: int = 4000
 
-    # Line widths
     line_width: int = 5
     thin_line_width: int = 1
 

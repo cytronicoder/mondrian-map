@@ -45,7 +45,6 @@ def compute_wfc(
         >>> rp_scores = pd.Series({"BRCA1": 0.8, "TP53": 0.6}, name="rp_score")
         >>> wfc = compute_wfc(gene_fc, rp_scores)
     """
-    # Find common genes
     common_genes = gene_fc.index.intersection(rp_scores.index)
 
     if len(common_genes) == 0:
@@ -55,7 +54,6 @@ def compute_wfc(
     fc_values = gene_fc.loc[common_genes].astype(float)
     weights = rp_scores.loc[common_genes].astype(float)
 
-    # Remove NaN values
     valid_mask = ~(fc_values.isna() | weights.isna())
     fc_values = fc_values[valid_mask]
     weights = weights[valid_mask]
@@ -66,7 +64,6 @@ def compute_wfc(
     if use_abs_fc:
         fc_values = fc_values.abs()
 
-    # Compute weighted FC
     weighted_fc = (weights * fc_values).sum() / weights.sum()
 
     return round(weighted_fc, 4)
@@ -98,10 +95,8 @@ def compute_pathway_wfc(
     if "RP_SCORE" not in ranked_genes_df.columns:
         raise ValueError("ranked_genes_df must have 'RP_SCORE' column")
 
-    # Extract RP scores
     rp_scores = ranked_genes_df.set_index("GENE_SYM")["RP_SCORE"].astype(float)
 
-    # Extract fold changes for genes in the pathway
     gene_fc = fold_change_df[fc_column]
 
     return compute_wfc(gene_fc, rp_scores, preserve_sign=preserve_sign)
@@ -143,10 +138,8 @@ def compute_all_pathway_wfc(
     pfdr_values = []
 
     for pag_id in iterator:
-        # Get RP-ranked genes
         ranked_genes = pager_client.get_pag_ranked_genes(pag_id)
 
-        # Compute wFC
         wfc = compute_pathway_wfc(
             pag_id,
             ranked_genes,
@@ -155,7 +148,6 @@ def compute_all_pathway_wfc(
             preserve_sign=preserve_sign,
         )
 
-        # Get pFDR from original PAG results
         pfdr = pag_df[pag_df["GS_ID"] == pag_id]["pFDR"].values[0]
 
         pag_ids.append(pag_id)
@@ -212,19 +204,16 @@ def compute_pathway_wfc_batch(
     results = []
 
     for pag_id in iterator:
-        # Get RP-ranked genes for this PAG
         ranked_genes = pager_client.get_pag_ranked_genes(pag_id)
 
         if len(ranked_genes) == 0:
             logger.warning(f"No ranked genes found for {pag_id}")
             continue
 
-        # Ensure RP_SCORE is numeric
         ranked_genes["RP_SCORE"] = pd.to_numeric(
             ranked_genes["RP_SCORE"], errors="coerce"
         )
 
-        # Build gene FC and weights
         weights = []
         wfc_vals = []
 
@@ -237,13 +226,11 @@ def compute_pathway_wfc_batch(
                     weights.append(w)
                     wfc_vals.append(w * fc)
 
-        # Compute weighted FC
         if weights and sum(weights) > 0:
             wfc = round(sum(wfc_vals) / sum(weights), 4)
         else:
             wfc = 0.0
 
-        # Get pFDR
         pfdr_rows = pag_df[pag_df["GS_ID"] == pag_id]["pFDR"]
         pfdr = pfdr_rows.values[0] if len(pfdr_rows) > 0 else 1.0
 
@@ -286,7 +273,6 @@ def build_entities_table(
         logger.warning("No matching pathways between wFC and coordinates")
         return entities
 
-    # Add metadata if available
     if include_metadata and pathway_info:
         entities["NAME"] = entities["GS_ID"].map(
             lambda x: pathway_info.get(x, {}).get("NAME", x)
@@ -301,7 +287,6 @@ def build_entities_table(
             lambda x: pathway_info.get(x, {}).get("Disease", "")
         )
 
-    # Ensure required columns
     required = ["GS_ID", "wFC", "pFDR", "x", "y"]
     missing = [col for col in required if col not in entities.columns]
     if missing:
@@ -331,16 +316,12 @@ def determine_regulation_direction(
     Returns:
         Direction string: "up", "down", "not_significant", or "mixed"
     """
-    # Non-significant pathways
     if pfdr >= significance_threshold:
         return "not_significant"
-    # Significant and up-regulated
     elif wfc >= up_threshold:
         return "up"
-    # Significant and down-regulated
     elif wfc <= down_threshold:
         return "down"
-    # Significant but mixed (between thresholds)
     else:
         return "mixed"
 
@@ -382,7 +363,6 @@ def classify_pathways(
         axis=1,
     )
 
-    # Log summary
     class_counts = df["classification"].value_counts().to_dict()
     logger.info(f"Pathway classification: {class_counts}")
 

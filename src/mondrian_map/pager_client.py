@@ -20,10 +20,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# PAGER API base URL
 PAGER_BASE_URL = "https://discovery.informatics.uab.edu/PAGER"
 
-# Default API endpoints
 ENDPOINTS = {
     "gnpa": f"{PAGER_BASE_URL}/index.php/geneset/pagerapi",
     "members": f"{PAGER_BASE_URL}/index.php/geneset/get_members_by_ids/",
@@ -35,33 +33,27 @@ ENDPOINTS = {
     "ngsea": f"{PAGER_BASE_URL}/index.php/geneset/ngseaapi/",
 }
 
-# Default sources for WikiPathways
 DEFAULT_SOURCES = ["WikiPathway_2021"]
 
-# Rate limiting settings
-DEFAULT_RATE_LIMIT = 1.0  # seconds between requests
+DEFAULT_RATE_LIMIT = 1.0
 DEFAULT_MAX_RETRIES = 3
-DEFAULT_RETRY_DELAY = 5.0  # seconds
+DEFAULT_RETRY_DELAY = 5.0
 
 
 @dataclass
 class PagerConfig:
     """Configuration for PAGER API client."""
 
-    # API settings
     base_url: str = PAGER_BASE_URL
     timeout: int = 60
 
-    # Rate limiting
     rate_limit: float = DEFAULT_RATE_LIMIT
     max_retries: int = DEFAULT_MAX_RETRIES
     retry_delay: float = DEFAULT_RETRY_DELAY
 
-    # Caching
     cache_dir: Optional[Path] = None
     use_cache: bool = True
 
-    # Default query parameters
     default_sources: List[str] = field(default_factory=lambda: DEFAULT_SOURCES.copy())
     default_pag_type: str = "P"  # P=Pathway, A=Annotation, G=Gene set
     default_min_size: int = 1
@@ -96,7 +88,6 @@ class PagerClient:
         self.config = config or PagerConfig()
         self._last_request_time = 0.0
 
-        # Setup cache directory
         if self.config.cache_dir:
             self.cache_dir = Path(self.config.cache_dir)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -180,14 +171,12 @@ class PagerClient:
         """
         params = params or {}
 
-        # Check cache
         if use_cache:
             cache_key = self._get_cache_key(endpoint, params)
             cached = self._load_from_cache(cache_key)
             if cached is not None:
                 return cached
 
-        # Make request with retry
         last_exception = None
         for attempt in range(self.config.max_retries):
             try:
@@ -205,7 +194,6 @@ class PagerClient:
                 response.raise_for_status()
                 data = response.json()
 
-                # Cache successful response
                 if use_cache:
                     self._save_to_cache(cache_key, data)
 
@@ -257,7 +245,6 @@ class PagerClient:
         Example:
             >>> pags = client.run_gnpa(["BRCA1", "TP53"], source=["WikiPathway_2021"])
         """
-        # Apply defaults
         source = source or self.config.default_sources
         min_size = min_size if min_size is not None else self.config.default_min_size
         max_size = max_size if max_size is not None else self.config.default_max_size
@@ -270,7 +257,6 @@ class PagerClient:
         pvalue = pvalue if pvalue is not None else self.config.default_pvalue
         fdr = fdr if fdr is not None else self.config.default_fdr
 
-        # Build params with PAGER API encoding
         params = {
             "genes": "%20".join(genes),
             "source": "%20".join(source),
@@ -470,7 +456,6 @@ class PagerClient:
         return count
 
 
-# Convenience function for backward compatibility with notebooks
 def create_pager_client(
     cache_dir: Optional[str] = None,
     use_cache: bool = True,

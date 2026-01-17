@@ -14,7 +14,6 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Default t-SNE parameters (matching notebook)
 DEFAULT_TSNE_PERPLEXITY = 30.0
 DEFAULT_TSNE_LEARNING_RATE = 200.0
 DEFAULT_TSNE_N_ITER = 1000
@@ -82,7 +81,6 @@ def tsne_project(
             "scikit-learn not installed. Install with: pip install scikit-learn"
         )
 
-    # Use config if provided
     if config is not None:
         seed = config.random_state
         perplexity = config.perplexity
@@ -95,7 +93,6 @@ def tsne_project(
         f"n_iter={n_iter}, seed={seed}"
     )
 
-    # Adjust perplexity if too high for sample size
     n_samples = embeddings.shape[0]
     if perplexity >= n_samples:
         old_perplexity = perplexity
@@ -160,7 +157,6 @@ def umap_project(
         f"Running UMAP: n_neighbors={n_neighbors}, min_dist={min_dist}, seed={seed}"
     )
 
-    # Adjust n_neighbors if too high
     n_samples = embeddings.shape[0]
     if n_neighbors >= n_samples:
         n_neighbors = max(2, n_samples - 1)
@@ -201,7 +197,6 @@ def normalize_coordinates(
     try:
         from sklearn.preprocessing import MinMaxScaler
     except ImportError:
-        # Fallback implementation
         x_min, x_max = coords[:, 0].min(), coords[:, 0].max()
         y_min, y_max = coords[:, 1].min(), coords[:, 1].max()
 
@@ -211,16 +206,13 @@ def normalize_coordinates(
         if y_max > y_min:
             normalized[:, 1] = (coords[:, 1] - y_min) / (y_max - y_min)
 
-        # Scale to range
         normalized = normalized * (range_max - range_min) + range_min
 
-        # Scale to canvas
         return normalized * canvas_size
 
     scaler = MinMaxScaler(feature_range=(range_min, range_max))
     normalized = scaler.fit_transform(coords)
 
-    # Scale to canvas size
     scaled = normalized * canvas_size
 
     logger.debug(
@@ -361,15 +353,12 @@ def compute_projection_quality(
         logger.warning("scikit-learn not available for quality metrics")
         return {}
 
-    # Adjust n_neighbors if needed
     n_samples = embeddings.shape[0]
     if n_neighbors >= n_samples:
         n_neighbors = max(1, n_samples // 2)
 
-    # Compute trustworthiness (how well local structure is preserved)
     trust = trustworthiness(embeddings, coords, n_neighbors=n_neighbors)
 
-    # Compute correlation between high-dim and low-dim distances
     hd_distances = pairwise_distances(embeddings).flatten()
     ld_distances = pairwise_distances(coords).flatten()
 
