@@ -994,13 +994,17 @@ def create_authentic_mondrian_map(
         width = abs(block.bottom_right_p[0] - block.top_left_p[0])
         height = abs(block.bottom_right_p[1] - block.top_left_p[1])
         min_side = min(width, height)
+        
+        # Scale marker size based on tile dimensions to prevent overflow beyond boundaries
+        # Use 60% of minimum dimension, capped between 6 and 18 pixels
+        marker_size = max(6, min(18, int(min_side * 0.6)))
 
         traces.append(
             go.Scatter(
                 x=[cx],
                 y=[cy],
                 mode="markers",
-                marker=dict(size=18, opacity=0),
+                marker=dict(size=marker_size, opacity=0),
                 customdata=[payload],
                 hoverinfo="skip",
                 showlegend=False,
