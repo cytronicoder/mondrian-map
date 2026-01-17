@@ -16,6 +16,7 @@ from enum import Enum
 from typing import List, Optional, Tuple
 
 import numpy as np
+from rtree import index
 
 # Algorithm Constants
 LINE_WIDTH = 5
@@ -452,6 +453,9 @@ class GridSystem:
         ordered_indices = sorted(
             range(len(areas_scaled)), key=lambda i: areas_scaled[i], reverse=True
         )
+        
+        # Create spatial index for efficient overlap queries
+        spatial_idx = index.Index()
         accepted_rects = []
         final_rects = [None] * len(rectangles)
 
@@ -473,16 +477,31 @@ class GridSystem:
                     yield offset
                 r += nudge_step
 
+        def _rect_to_bbox(rect, pad=0.0):
+            """Convert rectangle to bounding box format for rtree: (minx, miny, maxx, maxy)"""
+            (x0, y0), (x1, y1) = rect
+            minx, maxx = sorted([x0, x1])
+            miny, maxy = sorted([y0, y1])
+            return (minx - pad, miny - pad, maxx + pad, maxy + pad)
+
+        def _check_spatial_overlap(rect, pad=0.0):
+            """Check if rect overlaps with any accepted rectangles using spatial index"""
+            bbox = _rect_to_bbox(rect, pad)
+            # Query spatial index for potential intersections
+            candidate_ids = list(spatial_idx.intersection(bbox))
+            # Verify actual intersections with padding
+            for candidate_id in candidate_ids:
+                if rect_intersects(rect, accepted_rects[candidate_id], padding=pad):
+                    return True
+            return False
+
         for idx in ordered_indices:
             base_point = points[idx]
             base_area = areas_scaled[idx]
             base_rect = rectangles[idx]
             placed_rect = base_rect
 
-            if any(
-                rect_intersects(base_rect, accepted, padding=padding)
-                for accepted in accepted_rects
-            ):
+            if _check_spatial_overlap(base_rect, padding):
                 for dx, dy in _offset_candidates():
                     candidate_point = (base_point[0] + dx, base_point[1] + dy)
                     candidate_rect, _diff = self.fill_blocks_around_point(
@@ -492,13 +511,13 @@ class GridSystem:
                         candidate_rect = snap_rect_to_grid(
                             candidate_rect, grid=20, bounds=(0, 1000)
                         )
-                    if not any(
-                        rect_intersects(candidate_rect, accepted, padding=padding)
-                        for accepted in accepted_rects
-                    ):
+                    if not _check_spatial_overlap(candidate_rect, padding):
                         placed_rect = candidate_rect
                         break
 
+            # Add placed rectangle to spatial index
+            rect_id = len(accepted_rects)
+            spatial_idx.insert(rect_id, _rect_to_bbox(placed_rect, padding))
             accepted_rects.append(placed_rect)
             final_rects[idx] = placed_rect
 
