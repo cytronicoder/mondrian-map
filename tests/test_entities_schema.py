@@ -176,7 +176,7 @@ class TestSaveEntities:
         )
 
         output_path = tmp_path / "entities.csv"
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             save_entities(df, output_path, validate=True)
 
 
