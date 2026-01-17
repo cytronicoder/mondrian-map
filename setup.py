@@ -23,8 +23,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/your-username/mondrian-map",
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    packages=['mondrian_map'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -46,6 +45,9 @@ setup(
             "black>=21.0",
             "flake8>=3.8",
             "mypy>=0.900",
+        ],
+        "viz": [
+            "kaleido>=0.2.1"  # Enables static image export for Plotly figures
         ],
     },
     entry_points={

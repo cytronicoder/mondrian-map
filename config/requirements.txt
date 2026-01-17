@@ -7,36 +7,38 @@
 # for known CVEs reported by Dependabot (June 2025).
 
 # --- Web framework & plotting
-streamlit==1.34.0
-plotly==5.23.0
+streamlit>=1.34.0
+plotly>=5.23.0
 
 # --- Data processing
-pandas==2.2.2
-numpy==1.26.4
-scikit-learn==1.5.1
-scipy==1.14.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.4.0
+scipy>=1.11.0
 
 # --- Bioinformatics / domain specific
-pywikipathways==0.0.2
-sentence-transformers==3.0.1
+pywikipathways>=0.0.2
+sentence-transformers>=2.2.0
 
 # --- ML backbone (CPU-only build)
-torch==2.4.0
-transformers==4.43.3
+torch>=2.0.0
+transformers>=4.30.0
 
 # --- Supporting libraries (patched versions)
-h11==0.14.0            # CVE-2024-23334 fixed
-protobuf==4.25.4       # CVE-2024-35265 fixed
-jupyter_core==5.7.2    # CVE-2024-3094 fixed
-tornado==6.4.1         # CVE-2024-28855 fixed
+h11>=0.14.0            # CVE-2024-23334 fixed
+protobuf>=4.25.4       # CVE-2024-35265 fixed
+jupyter_core>=5.7.2    # CVE-2024-3094 fixed
+tornado>=6.4.0         # CVE-2024-28855 fixed
 
 # --- Security & Network
-requests==2.32.3
-urllib3==1.26.18       # Downgraded for LibreSSL compatibility
-certifi==2024.2.2      # Added for SSL certificate verification
-cryptography==42.0.5   # Added for enhanced security
-PyYAML==6.0.1
+requests>=2.31.0
+urllib3>=1.26.18       # Downgraded for LibreSSL compatibility
+certifi>=2024.2.2      # Added for SSL certificate verification
+cryptography>=42.0.0   # Added for enhanced security
+PyYAML>=6.0.1
+tqdm>=4.65.0           # Progress bars
+kaleido>=0.2.1          # Required for plotly static image export (PNG/SVG/PDF)
 
 # --- Input Validation & Sanitization
-python-dotenv==1.0.1   # Added for secure environment variable handling
-validators==0.22.0     # Added for input validation 
+python-dotenv>=1.0.0   # Added for secure environment variable handling
+validators>=0.22.0     # Added for input validation 

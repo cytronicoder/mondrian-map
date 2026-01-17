@@ -29,6 +29,70 @@ streamlit run apps/streamlit_app.py
 ### Option 2: Try Online
 🌐 **[Live Demo](https://your-deployment-url.streamlit.app)** - Try the app without installation
 
+### Option 3: Command Line Interface
+```bash
+# Install the package
+pip install -e .
+
+# Reproduce the GBM case study from the paper
+mondrian-map reproduce --case-study gbm --out outputs/ --use-cache
+
+# Generate visualization from your own data
+mondrian-map visualize --entities my_pathways.csv --out my_map.html --show-ids
+```
+
+## 📊 Reproduce Paper Figures
+
+To reproduce Figures 1-2 from the paper, run:
+
+```bash
+# Using the CLI
+mondrian-map reproduce --case-study gbm --out outputs/ --use-cache
+
+# Or using the script
+./scripts/reproduce_figures.sh
+```
+
+This will:
+1. Load precomputed PAGER/GNPA results from `data/case_study/`
+2. Load pathway embeddings (t-SNE coordinates)
+3. Generate the Mondrian Map visualization
+4. Save outputs to `outputs/gbm/`
+
+### Reproduce from Scratch (No Cache)
+
+To run the full pipeline without using cached artifacts:
+
+```bash
+mondrian-map reproduce --case-study gbm --out outputs/ --no-cache
+```
+
+⚠️ **Note**: Running without cache requires PAGER API access and may take 10-30 minutes.
+
+## 🗺️ Methods → Code Mapping
+
+| Paper Section | Function/Module | File |
+|---------------|-----------------|------|
+| **DEG Selection** | `select_degs()`, `compute_fold_change()` | `src/mondrian_map/degs.py` |
+| **GNPA Enrichment** | `PagerClient.run_gnpa()` | `src/mondrian_map/pager_client.py` |
+| **wFC Computation** | `compute_wfc()`, `compute_pathway_wfc()` | `src/mondrian_map/pathway_stats.py` |
+| **Embedding Generation** | `EmbeddingGenerator.encode()` | `src/mondrian_map/embeddings.py` |
+| **t-SNE Projection** | `tsne_project()` | `src/mondrian_map/projection.py` |
+| **Mondrian Grid** | `GridSystem`, `Block`, `Line` | `src/mondrian_map/core.py` |
+| **Visualization** | `create_authentic_mondrian_map()` | `src/mondrian_map/visualization.py` |
+
+### Key Parameters
+
+| Parameter | Value | Location |
+|-----------|-------|----------|
+| Up-regulation threshold | FC ≥ 1.5 | `configs/gbm_case_study.yaml` |
+| Down-regulation threshold | FC ≤ 0.5 | `configs/gbm_case_study.yaml` |
+| Significance threshold | pFDR < 0.05 | `configs/gbm_case_study.yaml` |
+| t-SNE perplexity | 30 | `configs/gbm_case_study.yaml` |
+| t-SNE random seed | 42 | `configs/gbm_case_study.yaml` |
+| Canvas size | 1001 × 1001 | `src/mondrian_map/core.py` |
+| Block grid | 20 × 20 | `src/mondrian_map/core.py` |
+
 ## 📁 Repository Structure
 
 ```
