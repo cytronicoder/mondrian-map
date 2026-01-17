@@ -33,7 +33,7 @@ from .projection import normalize_coordinates, tsne_project, umap_project
 # Visualization module requires plotly - import only when needed
 # from .visualization import create_authentic_mondrian_map, create_canvas_grid, create_color_legend
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"
 __all__ = [
     # Core classes
     "GridSystem",

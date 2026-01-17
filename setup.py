@@ -17,15 +17,18 @@ with open(requirements_path) as f:
         line.strip() for line in f if line.strip() and not line.startswith("#")
     ]
 
+# NOTE: This file is part of the modern pyproject.toml (PEP 621) build system.
+# All configuration should be maintained in pyproject.toml.
+
 setup(
     name="mondrian-map",
-    version="1.0.0",
-    author="Mondrian Map Team",
-    author_email="your-email@example.com",
+    version="1.2.0",
+    author="AIMED Lab",
+    author_email="jakechen@uab.edu",
     description="Authentic implementation of Mondrian Maps for biological pathway visualization",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/your-username/mondrian-map",
+    url="https://github.com/aimed-lab/mondrian-map",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     classifiers=[
@@ -63,8 +66,8 @@ setup(
     },
     keywords="bioinformatics, pathway analysis, visualization, mondrian maps, streamlit",
     project_urls={
-        "Bug Reports": "https://github.com/your-username/mondrian-map/issues",
-        "Source": "https://github.com/your-username/mondrian-map",
-        "Documentation": "https://github.com/your-username/mondrian-map/docs",
+        "Bug Reports": "https://github.com/aimed-lab/mondrian-map/issues",
+        "Source": "https://github.com/aimed-lab/mondrian-map",
+        "Documentation": "https://github.com/aimed-lab/mondrian-map/docs",
     },
 )

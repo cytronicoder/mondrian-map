@@ -39,7 +39,6 @@ def cmd_pipeline(args):
     setup_logging(verbose=args.verbose, debug=args.debug)
     logger = logging.getLogger(__name__)
 
-    # Load configuration
     if args.config:
         logger.info(f"Loading configuration from {args.config}")
         config = PipelineConfig.from_yaml(args.config)
@@ -47,7 +46,6 @@ def cmd_pipeline(args):
         logger.info("Using default configuration")
         config = PipelineConfig()
 
-    # Override with command line arguments
     if args.output:
         config.output_dir = args.output
     if args.use_cache is not None:
@@ -57,7 +55,6 @@ def cmd_pipeline(args):
     config.debug = args.debug
     config.verbose = args.verbose
 
-    # Run pipeline
     logger.info("Starting Mondrian Map pipeline")
     pipeline = MondrianMapPipeline(config)
 
@@ -123,24 +120,20 @@ def cmd_visualize(args):
     setup_logging(verbose=args.verbose, debug=args.debug)
     logger = logging.getLogger(__name__)
 
-    # Validate input files
     entities_path = Path(args.entities)
     if not entities_path.exists():
         print(f"Error: Entities file not found: {args.entities}", file=sys.stderr)
         return 1
 
-    # Load entities
     logger.info(f"Loading entities from {args.entities}")
     df = pd.read_csv(entities_path)
 
-    # Validate required columns
     required_cols = ["GS_ID", "wFC", "pFDR", "x", "y"]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         print(f"Error: Missing required columns: {missing_cols}", file=sys.stderr)
         return 1
 
-    # Load pathway info if available
     pathway_info = {}
     if args.pathway_info:
         pathway_info_path = Path(args.pathway_info)
@@ -150,7 +143,6 @@ def cmd_visualize(args):
         else:
             logger.warning(f"Pathway info file not found: {args.pathway_info}")
 
-    # Enrich entities with pathway info
     if pathway_info:
         df["Description"] = df["GS_ID"].map(
             lambda x: pathway_info.get(x, {}).get("Description", "")
@@ -162,7 +154,6 @@ def cmd_visualize(args):
         if "Description" not in df.columns:
             df["Description"] = ""
 
-    # Load relations if provided
     mem_df = None
     if args.relations:
         relations_path = Path(args.relations)
@@ -170,13 +161,10 @@ def cmd_visualize(args):
             logger.info(f"Loading relations from {args.relations}")
             mem_df = pd.read_csv(relations_path)
 
-            # Apply max relations per node limit
             threshold = args.max_relations if args.max_relations else 2
             if threshold > 0:
                 mem_df = get_relations(mem_df, threshold=threshold)
-            # else: keep full mem_df as-is
 
-    # Create visualization
     logger.info(f"Creating Mondrian Map with {len(df)} pathways")
     title = args.title or "Mondrian Map"
 
@@ -189,11 +177,9 @@ def cmd_visualize(args):
             mem_df=mem_df,
         )
 
-        # Save output
         output_path = Path(args.out)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Determine format from extension or explicit argument
         output_format = args.format or output_path.suffix.lstrip(".") or "html"
 
         logger.info(f"Saving to {args.out} ({output_format} format)")
@@ -228,7 +214,6 @@ def cmd_config(args):
     setup_logging(verbose=True)
 
     if args.action == "generate":
-        # Generate default config
         if args.case_study:
             if args.case_study.lower() == "gbm":
                 config = get_gbm_case_study_config()
@@ -288,15 +273,31 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         """,
     )
 
+    try:
+        # Python >=3.8
+        from importlib.metadata import PackageNotFoundError
+        from importlib.metadata import version as _pkg_version
+    except Exception:  # pragma: no cover - very old Python
+        try:
+            from importlib_metadata import PackageNotFoundError
+            from importlib_metadata import version as _pkg_version
+        except Exception:
+            _pkg_version = None
+            PackageNotFoundError = Exception
+
+    try:
+        pkg_version = _pkg_version("mondrian-map") if _pkg_version else "1.2.0"
+    except PackageNotFoundError:
+        pkg_version = "1.2.0"
+
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 1.0.0",
+        version=f"%(prog)s {pkg_version}",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # --- pipeline command ---
     pipeline_parser = subparsers.add_parser(
         "pipeline",
         help="Run the full Mondrian Map pipeline",
@@ -342,7 +343,6 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
     )
     pipeline_parser.set_defaults(func=cmd_pipeline)
 
-    # --- reproduce command ---
     reproduce_parser = subparsers.add_parser(
         "reproduce",
         help="Reproduce figures from the paper",
@@ -378,7 +378,6 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
     )
     reproduce_parser.set_defaults(func=cmd_reproduce)
 
-    # --- visualize command ---
     viz_parser = subparsers.add_parser(
         "visualize",
         help="Generate visualization from data files",
@@ -445,7 +444,6 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
     )
     viz_parser.set_defaults(func=cmd_visualize)
 
-    # --- config command ---
     config_parser = subparsers.add_parser(
         "config",
         help="Generate or validate configuration files",
@@ -472,14 +470,11 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
     )
     config_parser.set_defaults(func=cmd_config)
 
-    # Parse arguments
     args = parser.parse_args()
 
     if args.command is None:
         parser.print_help()
         return 0
-
-    # Run the appropriate command
     return args.func(args)
 
 

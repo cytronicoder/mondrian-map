@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](docs/releases/RELEASE_NOTES.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](docs/releases/RELEASE_NOTES.md)
 
 **Authentic implementation of Mondrian Maps for biological pathway visualization**
 
@@ -17,7 +17,7 @@ This repository contains a faithful implementation of the Mondrian Map algorithm
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/mondrian-map.git
+git clone https://github.com/aimed-lab/mondrian-map.git
 cd mondrian-map
 
 # Install dependencies
@@ -41,7 +41,8 @@ pip install -e .
 mondrian-map reproduce --case-study gbm --out outputs/ --use-cache
 
 # Generate visualization from your own data
-mondrian-map visualize --entities my_pathways.csv --out my_map.html --show-ids
+# You can optionally supply a relations CSV and control how many relations per node are shown
+mondrian-map visualize --entities my_pathways.csv --relations my_relations.csv --out my_map.html --show-ids --max-relations 2
 ```
 
 ## Reproduce paper figures
@@ -198,7 +199,7 @@ Your CSV files should contain these columns:
 
 ```bash
 # Clone and enter directory
-git clone https://github.com/your-username/mondrian-map.git
+git clone https://github.com/aimed-lab/mondrian-map.git
 cd mondrian-map
 
 # Create virtual environment
@@ -240,6 +241,10 @@ python -c "from mondrian_map.core import GridSystem; print('Core module imported
 - **[Release Notes](docs/releases/RELEASE_NOTES.md)** - Version history and change log
 
 ## Recent updates
+
+### Version 1.2.0 (2026-01-17)
+
+- Final cleanup of remaining modules; removed backward compatibility shims; updated release notes and packaging metadata (2026-01-17)
 
 ### Version 1.1.0 (2024-06-17)
 
