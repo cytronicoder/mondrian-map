@@ -28,7 +28,7 @@ docs/                     # User documentation
 
 ```bash
 # Clone and setup
-git clone https://github.com/your-username/mondrian-map.git
+git clone https://github.com/aimed-lab/mondrian-map.git
 cd mondrian-map
 
 # Install in development mode
@@ -88,6 +88,46 @@ mypy src/mondrian_map/
 # Run tests
 pytest tests/
 ```
+
+### Packaging and release
+
+We use `pyproject.toml` (PEP 621) for packaging metadata. To build and publish a release:
+
+```bash
+# Install build tools
+pip install --upgrade build twine
+
+# Create source + wheel distributions
+python -m build
+
+# Inspect artifacts in dist/
+ls -la dist/
+
+# Upload to PyPI (recommended to test with TestPyPI first)
+# twine upload --repository testpypi dist/*
+# twine upload dist/*
+```
+
+Notes:
+
+- `setup.py` is retained for backward compatibility but `pyproject.toml` is the authoritative source of package metadata.
+- Bump `version` in `pyproject.toml` prior to creating a release and update `docs/releases/RELEASE_NOTES.md` accordingly.
+
+### Linting with Ruff
+
+We use [Ruff](https://github.com/astral-sh/ruff) for fast linting and autofixes. A `.ruff.toml` file at the project root configures rules and excludes large/generated folders (e.g., `notebooks`, `static`, `data`, `figures`, `.venv`, `docs`).
+
+Run Ruff locally:
+
+```bash
+# Report issues
+ruff check .
+
+# Apply safe fixes
+ruff check . --fix
+```
+
+If you want to run more aggressive (unsafe) fixes, you can add `--unsafe-fixes` but review changes carefully before committing.
 
 ## Documentation
 

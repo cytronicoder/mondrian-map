@@ -94,6 +94,25 @@ If you get permission denied:
 chmod +x scripts/run_streamlit.sh
 ```
 
+## Visualize from the Command Line
+
+The `visualize` CLI command can be used to render a Mondrian Map from CSV files.
+
+Required:
+
+- `--entities / -e`: Entities CSV (required columns: `GS_ID`, `wFC`, `pFDR`, `x`, `y`)
+
+Optional:
+
+- `--relations / -r`: Path to relations CSV (two-column format: `GS_A_ID`, `GS_B_ID`). When provided, relations will be filtered by the `--max-relations` option.
+- `--max-relations`: Maximum relations per node (0 = unlimited, default: 2)
+
+Example:
+
+```bash
+mondrian-map visualize -e my_pathways.csv -r my_relations.csv -o my_map.html --max-relations 3
+```
+
 ## Advanced Usage
 
 ### Custom Port Range

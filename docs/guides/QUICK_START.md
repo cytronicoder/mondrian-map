@@ -5,7 +5,7 @@
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/mondrian-map.git
+git clone https://github.com/aimed-lab/mondrian-map.git
 cd mondrian-map
 ```
 

@@ -7,19 +7,24 @@ This project has been reorganized to follow professional software development st
 All documentation has been moved to the `docs/` directory for better organization:
 
 ### Quick Start
+
 - See [docs/guides/QUICK_START.md](docs/guides/QUICK_START.md)
 
 ### Development
+
 - See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 
 ### Deployment
+
 - See [docs/guides/DEPLOYMENT_GUIDE.md](docs/guides/DEPLOYMENT_GUIDE.md)
 - Troubleshooting: [docs/guides/DEPLOYMENT_TROUBLESHOOTING.md](docs/guides/DEPLOYMENT_TROUBLESHOOTING.md)
 
 ### Project Structure
+
 - See [docs/architecture/ORGANIZATION_SUMMARY.md](docs/architecture/ORGANIZATION_SUMMARY.md)
 
 ### Complete Documentation
+
 For all documentation, visit [docs/](docs/)
 
 ## Project Structure
@@ -45,7 +50,7 @@ mondrian-map/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/mondrian-map.git
+git clone https://github.com/aimed-lab/mondrian-map.git
 cd mondrian-map
 
 # Install in editable mode
@@ -65,6 +70,7 @@ print("Installation successful!")
 ## Key Changes
 
 This reorganization implements:
+
 - ✓ Professional src/ layout for Python packaging
 - ✓ Organized documentation by category
 - ✓ Centralized configuration management
