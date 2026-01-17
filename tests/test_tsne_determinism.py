@@ -136,7 +136,7 @@ class TestTSNEEdgeCases:
     """Test edge cases for t-SNE projection."""
 
     def test_small_sample_size(self):
-        """Test with very few samples."""
+        """Test t-SNE with minimal sample dataset."""
         np.random.seed(111)
         embeddings = np.random.randn(5, 100)
 

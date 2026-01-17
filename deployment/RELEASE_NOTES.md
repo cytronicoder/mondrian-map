@@ -8,9 +8,9 @@ This release significantly improves the visual authenticity and user experience 
 
 ---
 
-## 🆕 New Features
+## New Capabilities
 
-### Smart grid line system
+### Intelligent grid line system
 
 - **Authentic Mondrian Principles**: Implemented intelligent grid line management following true Mondrian aesthetics
 - **Intersection Avoidance**: Grid lines automatically avoid intersecting pathway tile interiors
@@ -19,20 +19,20 @@ This release significantly improves the visual authenticity and user experience 
 - **Light Gray Styling**: All grid lines use light gray color (`#D3D3D3`) for subtle appearance
 - **Minimum Segment Length**: Only substantial segments (>40px) are kept to avoid visual clutter
 
-### 🏷️ Pathway ID Management
+### Pathway Identifier Management
 
 - **Toggle Control**: Added sidebar checkbox to show/hide pathway ID labels
 - **Default Off**: Pathway IDs are now hidden by default for cleaner small-view appearance
 - **Regular Font**: Changed from bold "Arial Black" to regular "Arial" font for better readability
 - **Universal Control**: Toggle works across all visualization modes (canvas, full-size, detailed views)
 
-### 🖱️ Enhanced Click Functionality
+### Enhanced Click Functionality
 
 - **Direct Tile Interaction**: Click directly on pathway tiles (no separate buttons needed)
 - **Full-Screen Activation**: Clicking any tile automatically opens full-screen detailed view of the entire dataset
 - **Simplified Hover**: Hover shows pathway name + "Click for full-screen view" hint
 - **Session State Management**: Proper state tracking for detailed view navigation
-- **Close Button**: Easy "❌ Close Detailed View" button to return to overview
+- **Close Button**: Intuitive button to close detailed view and return to overview
 
 ### Improved connecting lines
 
@@ -40,11 +40,9 @@ This release significantly improves the visual authenticity and user experience 
 - **Better Contrast**: Relationship lines stand out more prominently from background grid
 - **Maintained Colors**: Red, blue, and yellow connecting lines preserve their biological meaning
 
----
+## Technical Implementation Details
 
-## 🔧 Technical Improvements
-
-### Grid Line Algorithm
+### Grid Line Generation Algorithm
 
 - **`create_smart_grid_lines()`**: New intelligent grid line generation system
 - **`get_meaningful_tile_edges()`**: Identifies structurally important tile boundaries
@@ -86,7 +84,7 @@ This release significantly improves the visual authenticity and user experience 
 
 ---
 
-## 🔄 Migration from Version 1.1.0
+## Migration from Version 1.1.0
 
 ### What's Changed
 
@@ -101,9 +99,7 @@ This release significantly improves the visual authenticity and user experience 
 - **Core Functionality**: All analysis features preserved and enhanced
 - **Configuration**: Previous settings work with new toggle controls
 
----
-
-## 🐛 Bug Fixes
+## Bug Fixes and Improvements
 
 ### Critical Fixes
 
@@ -119,33 +115,33 @@ This release significantly improves the visual authenticity and user experience 
 
 ---
 
-## Usage notes
+## Usage Guidelines and Best Practices
 
-### New Controls
+### New Interface Controls
 
-- **Pathway ID Toggle**: Use sidebar checkbox "Show pathway IDs" to control label visibility
-- **Direct Clicking**: Click any pathway tile to open full-screen detailed analysis
-- **Close Detailed View**: Use "❌ Close Detailed View" button to return to overview
+- **Pathway Identifier Toggle**: Use sidebar checkbox "Show pathway IDs" for visibility control
+- **Direct Interaction**: Click pathway tiles to open full-screen detailed analysis
+- **Navigation Control**: Use close button to return to overview display
 
-### Best Practices
+### Recommended Practices
 
-- **Small Views**: Keep pathway IDs off for cleaner appearance in canvas grid
-- **Large Views**: Turn pathway IDs on for detailed analysis and identification
-- **Navigation**: Use direct tile clicking for fastest access to detailed views
+- **Grid Canvas Views**: Hide pathway identifiers for cleaner appearance in multi-dataset grids
+- **Detailed Analysis**: Display pathway identifiers when performing focused analysis
+- **Efficient Navigation**: Utilize direct tile clicking for rapid access to detailed information
 
 ---
 
 ## Version 1.1.0 (December 14, 2025)
 
-### Major release: Authentic Mondrian Map Web Application
+### Major Release: Authentic Mondrian Map Web Application
 
 This release introduces a complete interactive web application that faithfully implements the authentic Mondrian Map algorithm from our bioRxiv paper "Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis".
 
 ---
 
-## 🆕 New Features
+## New Capabilities
 
-### Authentic algorithm implementation
+### Complete algorithm implementation
 
 - **Complete Class System**: Implemented exact `GridSystem`, `Block`, `Line`, `Corner` classes with parameters matching the research notebooks
 - **3-Stage Generation Process**:
@@ -184,7 +180,7 @@ This release introduces a complete interactive web application that faithfully i
 - **Complete Annotation System**: Integration with pathway descriptions, ontology, and disease information
 - **Comprehensive Statistics**: Real-time analysis of pathway distributions and significance
 
-### 🔧 User Interface & Experience
+### User Interface and Experience Enhancements
 
 - **Multi-Select Configuration**: Choose any combination of datasets for comparison
 - **Viewing Modes**:
@@ -201,7 +197,7 @@ This release introduces a complete interactive web application that faithfully i
 
 ---
 
-## 🔧 Technical Improvements
+## Technical Implementation Improvements
 
 ### Algorithm Fidelity
 
@@ -230,7 +226,7 @@ This release introduces a complete interactive web application that faithfully i
 
 ---
 
-## 📈 Data & Integration
+## Data Processing and Integration
 
 ### Pathway Data
 
@@ -269,11 +265,11 @@ This release introduces a complete interactive web application that faithfully i
 
 ---
 
-## 🔄 Migration from Version 1.0
+## Migration from Version 1.0
 
 ### What's Changed
 
-- **Complete Application Rewrite**: From simple scatter plots to authentic Mondrian maps
+- **Comprehensive Application Rewrite**: Transformation from basic scatter plot visualization to authentic Mondrian map implementation
 - **Enhanced Data Integration**: From basic CSV loading to comprehensive pathway analysis
 - **Professional UI**: From basic Streamlit interface to feature-rich application
 
@@ -343,7 +339,7 @@ We welcome contributions! Please see our contribution guidelines and open issues
 
 ---
 
-## 📞 Support & Contact
+## Support and Contact Information
 
 For questions, bug reports, or feature requests:
 

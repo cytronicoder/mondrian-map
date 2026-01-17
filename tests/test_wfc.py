@@ -17,10 +17,10 @@ class TestWFCComputation:
     """Test suite for weighted fold change computation."""
 
     def test_simple_wfc(self):
-        """Test wFC with simple known values."""
-        # Simple case: two genes
-        # Gene 1: FC=2.0, weight=1.0
-        # Gene 2: FC=4.0, weight=1.0
+        """Test weighted fold-change with standard test values."""
+        # Standard case: two genes
+        # Gene 1: log fold-change=2.0, weight=1.0
+        # Gene 2: log fold-change=4.0, weight=1.0
         # Expected wFC = (1*2 + 1*4) / (1+1) = 3.0
         gene_fc = pd.Series([2.0, 4.0], index=["GENE1", "GENE2"])
         weights = pd.Series([1.0, 1.0], index=["GENE1", "GENE2"])
@@ -159,7 +159,7 @@ class TestWFCEdgeCases:
     """Test edge cases and numerical stability."""
 
     def test_large_weights(self):
-        """Test wFC with very large weights."""
+        """Test weighted fold-change with large weight magnitudes."""
         gene_fc = pd.Series([1.0, 2.0], index=["G1", "G2"])
         weights = pd.Series([1e10, 1e10], index=["G1", "G2"])
 
@@ -167,7 +167,7 @@ class TestWFCEdgeCases:
         assert result == pytest.approx(1.5)
 
     def test_small_weights(self):
-        """Test wFC with very small weights."""
+        """Test weighted fold-change with small weight magnitudes."""
         gene_fc = pd.Series([1.0, 2.0], index=["G1", "G2"])
         weights = pd.Series([1e-10, 1e-10], index=["G1", "G2"])
 

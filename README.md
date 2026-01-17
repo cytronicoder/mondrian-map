@@ -73,7 +73,7 @@ mondrian-map reproduce --case-study gbm --out outputs/ --no-cache
 
 Note: Running without cache requires PAGER API access and may take 10–30 minutes.
 
-## 🗺️ Methods → Code Mapping
+## Methods to Code Mapping
 
 | Paper Section | Function/Module | File |
 |---------------|-----------------|------|
@@ -101,26 +101,25 @@ Note: Running without cache requires PAGER API access and may take 10–30 minut
 
 ```
 mondrian-map/
-├── 📱 apps/                    # Streamlit applications
+├── apps/                       # Streamlit applications
 │   └── streamlit_app.py        # Main web application
-├── src/                     # Core Python modules
-│   └── mondrian_map/           # Main package
-│       ├── core.py             # Core algorithm classes
-│       ├── data_processing.py  # Data handling utilities
-│       └── visualization.py    # Plotting functions
-├── data/                    # Dataset files
+├── mondrian_map/               # Core Python package
+│   ├── core.py                 # Core algorithm classes
+│   ├── data_processing.py      # Data handling utilities
+│   └── visualization.py        # Plotting functions
+├── data/                       # Dataset files
 │   └── case_study/             # Example datasets
-├── 📓 notebooks/               # Jupyter notebooks
+├── notebooks/                  # Jupyter notebooks
 │   ├── visualize_mondrian_map.ipynb
 │   ├── pathway_embeddings.ipynb
-│   └── data_preperation.ipynb
-├── ⚙️ config/                  # Configuration files
+│   └── data_preparation.ipynb
+├── config/                     # Configuration files
 │   ├── requirements.txt        # Python dependencies
-│   └── runtime.txt            # Python version
-├── 🚢 deployment/             # Deployment guides
-├── 📚 docs/                   # Documentation
-├── figures/                # Images and plots
-└── static/                 # Static assets
+│   └── runtime.txt             # Python version specification
+├── deployment/                 # Deployment documentation
+├── docs/                       # User documentation
+├── figures/                    # Images and visualizations
+└── static/                     # Static assets
 ```
 
 ## Features
@@ -220,7 +219,7 @@ pip install -e .
 streamlit run apps/streamlit_app.py
 
 # Test with example data
-python -c "from src.mondrian_map.core import GridSystem; print('Core module imported successfully.')"
+python -c "from mondrian_map.core import GridSystem; print('Core module imported successfully.')"
 ```
 
 ### Project Structure Philosophy
@@ -231,14 +230,14 @@ python -c "from src.mondrian_map.core import GridSystem; print('Core module impo
 - **`docs/`**: Documentation and guides
 - **`deployment/`**: Deployment-specific documentation
 
-## 📖 Documentation
+## Documentation
 
-- **[Script Usage Guide](docs/SCRIPT_USAGE.md)** - Comprehensive guide for using the run scripts
-- **[Security Features](docs/SECURITY_FEATURES.md)** - Detailed security documentation
-- **[Algorithm Details](docs/FIGURE_NOTE.md)** - Technical implementation details
-- **[Deployment Guide](deployment/DEPLOYMENT_GUIDE.md)** - How to deploy the app
-- **[Troubleshooting](deployment/DEPLOYMENT_TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Release Notes](docs/releases/RELEASE_NOTES.md)** - Version history and changes
+- **[Script Usage Guide](docs/SCRIPT_USAGE.md)** - Comprehensive documentation for execution scripts
+- **[Security Features](docs/SECURITY_FEATURES.md)** - Detailed security implementation
+- **[Algorithm Details](docs/FIGURE_NOTE.md)** - Technical implementation specifications
+- **[Deployment Guide](deployment/DEPLOYMENT_GUIDE.md)** - Application deployment procedures
+- **[Troubleshooting](deployment/DEPLOYMENT_TROUBLESHOOTING.md)** - Issue resolution and common problems
+- **[Release Notes](docs/releases/RELEASE_NOTES.md)** - Version history and change log
 
 ## Recent updates
 
@@ -254,19 +253,20 @@ For a complete list of changes, see [RELEASE_NOTES.md](docs/releases/RELEASE_NOT
 
 ## Contributing
 
-We welcome contributions! Please see our contributing guidelines:
+We welcome contributions to this project. Please follow these guidelines:
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
+1. Fork the repository
+2. Create a feature branch
+3. Adhere to established code style conventions
+4. Add appropriate test coverage
+5. Update documentation accordingly
+6. Submit a pull request
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📖 Citation
+## Citation
 
 If you use this tool in your research, please cite:
 
@@ -282,55 +282,55 @@ If you use this tool in your research, please cite:
 
 ## Acknowledgments
 
-- Original research paper authors for the innovative Mondrian Map concept
-- Streamlit team for the excellent web app framework
-- Plotly team for powerful visualization capabilities
-- The bioinformatics community for pathway data and annotations
+- Original research paper authors for the methodological innovation in pathway visualization
+- Streamlit framework contributors for the interactive application platform
+- Plotly framework contributors for visualization capabilities
+- Bioinformatics community for pathway data resources and annotations
 
-## 📞 Support
+## Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/mondrian-map/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/mondrian-map/discussions)
-- **Email**: <your-email@example.com>
+- **GitHub Issues**: [Issue tracker](https://github.com/aimed-lab/mondrian-map/issues)
+- **GitHub Discussions**: [Discussion forum](https://github.com/aimed-lab/mondrian-map/discussions)
+- **Contact**: [jakechen@uab.edu](mailto:jakechen@uab.edu) or [fuad021@uab.edu](mailto:fuad021@uab.edu)
 
-## Running the app
+## Running the Application
 
-### Unix/macOS
+### Unix and macOS
 
-To run the app with automatic port management and error handling:
+Execute the application with automatic port management and error handling:
 
 ```bash
 ./scripts/run_streamlit.sh
 ```
 
-- Finds an available port
-- Cleans up existing Streamlit processes
-- Checks for Streamlit installation
+Features:
+
+- Automatic discovery of available port
+- Cleanup of existing Streamlit processes
+- Verification of Streamlit installation
 
 ### Windows
 
-To run the app on Windows:
+Execute the application on Windows:
 
 ```bat
 scripts\run_streamlit_win.bat
 ```
 
-- Finds an available port
-- Cleans up existing Streamlit processes
-- Checks for Streamlit installation
+Features:
+
+- Automatic discovery of available port
+- Cleanup of existing Streamlit processes
+- Verification of Streamlit installation
 
 ### Troubleshooting
 
-- If you see a port conflict, the script will automatically try the next available port.
-- If Streamlit is not installed, you'll get a clear error message with installation instructions.
-- Uploaded files are validated for name, type, and required columns for security.
+- Port conflicts are automatically resolved by the script attempting subsequent available ports
+- Clear error messages indicate missing dependencies with installation instructions
+- Uploaded files undergo validation for filename safety, file type, and required column structure
 
-## Security features
+## Security Implementation
 
-- File uploads are sanitized and validated (only .csv, safe names, required columns)
-- Input validation is performed on all uploaded data
-- Error handling for missing dependencies and invalid files
-
----
-
-Made for the bioinformatics community.
+- File uploads are sanitized and validated (CSV format only, safe filenames, required column verification)
+- All uploaded data undergoes validation
+- Comprehensive error handling for missing dependencies and invalid data formats

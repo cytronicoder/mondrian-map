@@ -2,7 +2,23 @@
 
 **Project Overview:**
 
-This repository contains supplementary file, codebase and data generated for our paper titled "Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis" which is currently under peer-review in a bioinformatics conference.
+This repository contains supplementary files, codebase and data generated for our paper titled "Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis" which is currently under peer-review in a bioinformatics conference.
+
+## Documentation Guide
+
+For easy navigation of project documentation, refer to the following directories:
+
+- **[guides/](guides/)** - User guides, quick start, deployment instructions, and troubleshooting
+- **[architecture/](architecture/)** - System design, project organization, and module responsibilities
+- **[api/](api/)** - API reference documentation (in preparation)
+- **[releases/](releases/)** - Version history and release notes
+
+### Quick Links
+
+- **Getting Started**: [Quick Start Guide](guides/QUICK_START.md)
+- **Development**: [Development Guide](DEVELOPMENT.md)
+- **Deployment**: [Deployment Guide](guides/DEPLOYMENT_GUIDE.md)
+- **Project Structure**: [Organization Summary](architecture/ORGANIZATION_SUMMARY.md)
 
 **Supplementary File:** The supplementary file to our paper can be found [here](https://github.com/aimed-lab/mondrian-map/blob/main/supplementary-file.pdf).
 
@@ -17,23 +33,23 @@ This repository contains supplementary file, codebase and data generated for our
 
 ## Flow Chart
 
-![Flow-Diagram](figures/banner.png)
+![Flow-Diagram](../figures/banner.png)
 
 ## Mondrian Map Generation
 
-![Methodology](figures/method.png)
+![Methodology](../figures/method.png)
 
 ## Results
 
-![Results](figures/results.png)
+![Results](../figures/results.png)
 
 ## Web Application Canvas Grid
 
-![Canvas Grid](figures/canvas_grid_example.png)
+![Canvas Grid](../figures/canvas_grid_example.png)
 
 ## Cite Us
 
-If you find out tool useful, cite our [latest preprint](https://www.biorxiv.org/content/10.1101/2024.04.11.589093v2).
+If you find our tool useful, cite our [latest preprint](https://www.biorxiv.org/content/10.1101/2024.04.11.589093v2).
 
 ```
 @article {AlAbir_MondrianMap,
