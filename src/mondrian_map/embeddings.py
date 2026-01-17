@@ -9,17 +9,17 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+from .config import EmbeddingConfig
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from .pager_client import PagerClient
-
-from .config import EmbeddingConfig
 
 # Default model configurations
 DEFAULT_SENTENCE_TRANSFORMER = "all-mpnet-base-v2"
@@ -480,6 +480,20 @@ def embed_pathways(
 ) -> np.ndarray:
     """
     Generate embeddings for pathways using pre-built prompts.
+
+    Notes:
+        The function returns a NumPy array of embeddings ordered to match the
+        input `pathway_ids` list. Callers should maintain the `pathway_ids`
+        order to map embeddings back to pathway identifiers.
+
+    Args:
+        pathway_ids: List of pathway IDs (determines embedding order)
+        prompts: List of text prompts (must match pathway_ids length)
+        config: Embedding configuration
+        cache_key: Optional cache key for storing/loading embeddings
+
+    Returns:
+        NumPy array of embeddings with shape (len(pathway_ids), embedding_dim)
     """
     if len(pathway_ids) != len(prompts):
         raise ValueError("pathway_ids and prompts must be the same length")
