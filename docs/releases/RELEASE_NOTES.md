@@ -1,44 +1,50 @@
 # Release Notes - Mondrian Map Explorer
 
-## Version 1.11.0 (December 14, 2025)
+## Version 1.2.0 (January 17, 2026)
 
-### Enhanced grid lines & authentic Mondrian aesthetics
+This release finalizes the cleanup of remaining modules, removes backward compatibility shims, and updates release notes and package metadata (2026-01-17).
 
-This release significantly improves the visual authenticity and user experience of the Mondrian Map Explorer with smart grid line management, enhanced interactivity, and refined UI elements.
+### Changes
 
----
+- Visualization and rendering
+  - Refined Mondrian map styling and interactivity (grid/partitions/routing improvements; improved click/hover behavior and full-screen activation). See: `src/mondrian_map/visualization.py`, `apps/streamlit_app.py`.
+  - Enforced non-overlap constraints and improved tile rendering fidelity and layout (better overlap resolution, suffix collision checks, and minimum rectangle dimensions). See: `src/mondrian_map/core.py`, `src/mondrian_map/visualization.py`.
+  - Improved grid alignment and partition routing logic to reduce visual artifacts and increase layout stability.
+- Spatial indexing and geometry
+  - Added spatial indexing to `GridSystem` with R-tree support for fast overlap detection and snapping; new tests added (`tests/test_core_rtree.py`, `tests/test_core_snap.py`).
+  - Implemented improved snapping and tile adjacency resolution used by routing and layout algorithms.
+- Markers & responsiveness
+  - Scaled marker sizing to fit tile dimensions and added minimum marker/rectangle size constraints for consistent rendering at different canvas scales.
+- Pipeline, data & I/O
+  - Continued cleanup of pipeline logic and caching; removed redundant pipeline files and standardized manifest outputs (`src/mondrian_map/pipeline.py`).
+  - Minor data handling fixes and improved handling of rendering layers and session storage (store compact customdata arrays).
+- Tests, docs & packaging
+  - Added and improved tests for layout, R-tree indexing, and routing; enhanced documentation across `docs/` and `DEVELOPMENT.md`.
+  - Updated package structure and CLI implementation; package metadata bumped to 1.2.0 and `pyproject.toml` standardized.
+- Tooling & housekeeping
+  - Linting/formatting and numerous small refactors to improve maintainability and readability (`ruff` fixes applied across the codebase).
+  - Added outputs directory to `.gitignore` and improved repository structure; updated Quick Start and deployment guides.
 
-## New Capabilities
+These cumulative changes deliver more robust, deterministic layouts, better rendering fidelity, and improved developer experience for maintenance and packaging.
 
-### Intelligent grid line system
+### Deprecation Notices
 
-- **Authentic Mondrian Principles**: Implemented intelligent grid line management following true Mondrian aesthetics
-- **Intersection Avoidance**: Grid lines automatically avoid intersecting pathway tile interiors
-- **Structural Purpose Only**: Lines only exist where they serve meaningful structural purposes
-- **Smart Start/End Points**: Lines can start/end at canvas boundaries OR closest tile edges
-- **Light Gray Styling**: All grid lines use light gray color (`#D3D3D3`) for subtle appearance
-- **Minimum Segment Length**: Only substantial segments (>40px) are kept to avoid visual clutter
+The following patterns are no longer supported:
 
-### Pathway Identifier Management
+- Direct installation via `setup.py install` or `setup.py develop`
+- setuptools configuration in setup.py (migrate to pyproject.toml)
+- Python <3.10
 
-- **Toggle Control**: Added sidebar checkbox to show/hide pathway ID labels
-- **Default Off**: Pathway IDs are now hidden by default for cleaner small-view appearance
-- **Regular Font**: Changed from bold "Arial Black" to regular "Arial" font for better readability
-- **Universal Control**: Toggle works across all visualization modes (canvas, full-size, detailed views)
+### Known Issues
 
-### Enhanced Click Functionality
+The following 19 pre-existing test failures remain (unrelated to this release):
 
-- **Direct Tile Interaction**: Click directly on pathway tiles (no separate buttons needed)
-- **Full-Screen Activation**: Clicking any tile automatically opens full-screen detailed view of the entire dataset
-- **Simplified Hover**: Hover shows pathway name + "Click for full-screen view" hint
-- **Session State Management**: Proper state tracking for detailed view navigation
-- **Close Button**: Intuitive button to close detailed view and return to overview
+- t-SNE parameter compatibility with scikit-learn >= 1.5.0
+- Entity schema definition tests
+- Color classification edge cases
+These are tracked in the test suite and do not affect core functionality.
 
-### Improved connecting lines
-
-- **Enhanced Visibility**: Colored Manhattan relationship lines now use 2pt thickness (vs 1pt grid lines)
-- **Better Contrast**: Relationship lines stand out more prominently from background grid
-- **Maintained Colors**: Red, blue, and yellow connecting lines preserve their biological meaning
+### Version 1.11.0
 
 ## Technical Implementation Details
 
