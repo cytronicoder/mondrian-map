@@ -16,15 +16,23 @@ from mondrian_map.visualization import (
 )
 
 
+@pytest.fixture(autouse=True)
+def reset_block_state():
+    """Automatically reset Block class state before each test."""
+    Block.instances = {}
+    Block.instance_count = 0
+    yield
+    # Cleanup after test
+    Block.instances = {}
+    Block.instance_count = 0
+
+
 class TestPartitionLineGeneration:
     """Test suite for sparse partition line generation."""
 
     @pytest.fixture
     def sample_blocks(self):
         """Create sample blocks for testing."""
-        Block.instances = {}
-        Block.instance_count = 0
-        
         blocks = []
         # Create a 2x2 grid of blocks
         for i in range(2):
@@ -108,9 +116,6 @@ class TestPartitionLineGeneration:
 
     def test_partition_lines_exclude_canvas_boundaries(self):
         """Test that partition lines at canvas boundaries (0, 1000) are excluded."""
-        Block.instances = {}
-        Block.instance_count = 0
-        
         # Create blocks that touch canvas boundaries
         blocks = [
             Block(
@@ -164,8 +169,6 @@ class TestManhattanRouting:
     @pytest.fixture
     def source_block(self):
         """Create a source block."""
-        Block.instances = {}
-        Block.instance_count = 0
         return Block(
             Point(100, 100),
             Point(200, 200),
@@ -212,9 +215,6 @@ class TestManhattanRouting:
 
     def test_manhattan_routing_with_obstacle(self):
         """Test that route_manhattan avoids obstacles."""
-        Block.instances = {}
-        Block.instance_count = 0
-        
         source = Block(
             Point(100, 100),
             Point(200, 200),
@@ -265,9 +265,6 @@ class TestManhattanRouting:
 
     def test_manhattan_routing_no_path_returns_empty(self):
         """Test that route_manhattan returns empty list when no valid path exists."""
-        Block.instances = {}
-        Block.instance_count = 0
-        
         # Create blocks that are impossible to connect without collision
         # This is a simplified test; in practice, the algorithm tries many offsets
         source = Block(
