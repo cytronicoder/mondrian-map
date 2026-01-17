@@ -141,7 +141,7 @@ def display_pathway_tooltip(pathway_info: dict):
                 margin: 20px 0;
                 box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             ">
-                <h3 style="margin-top: 0; color: #333;">🧬 {name}</h3>
+                <h3 style="margin-top: 0; color: #333;">Pathway: {name}</h3>
                 <p><strong>ID:</strong> {pid}</p>
                 <p><strong>Fold Change:</strong> {fc:.3f}</p>
                 <p><strong>P-value:</strong> {pvalue:.2e}</p>
@@ -158,14 +158,14 @@ def display_pathway_tooltip(pathway_info: dict):
         # Close button
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("❌ Close Description", key="close_tooltip"):
+            if st.button("Close description", key="close_tooltip"):
                 st.session_state.clicked_pathway_info = None
                 st.rerun()
 
 
-def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float, up_color: str = "🔴", down_color: str = "🔵"):
+def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float, up_color: str = "red", down_color: str = "blue"):
     """Display genes for a selected pathway with differential expression coloring"""
-    st.markdown(f"### 🧬 Genes in Pathway: {pathway_id}")
+    st.markdown(f"### Genes in pathway: {pathway_id}")
 
     if deg_data is None:
         st.warning("No differential gene expression data available")
@@ -197,9 +197,9 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float, 
             elif fc <= (1 / fc_threshold):
                 return f"{down_color} Down-regulated"
             else:
-                return "🟡 Moderate"
+                return "Moderate"
         else:
-            return "⚪ Not significant"
+            return "Not significant"
 
     gene_display["Regulation"] = gene_display.apply(
         lambda row: get_gene_color(row.get("fold_change", 1), row.get("pvalue", 1)),
@@ -377,12 +377,12 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
         display_df["Evidence Score"] = display_df["Evidence Score"].round(2)
 
         # Display the crosstalks table
-        st.markdown(f"#### 🔗 Pathway Interactions ({len(display_df)} shown)")
+        st.markdown(f"#### Pathway interactions ({len(display_df)} shown)")
         st.dataframe(display_df, width="stretch", height=400)
 
         # Top interactions summary
         if len(display_df) > 0:
-            st.markdown("#### 🏆 Top 5 Strongest Interactions")
+            st.markdown("#### Top 5 strongest interactions")
             top_interactions = display_df.head(5)[
                 ["Pathway A", "Pathway B", "Similarity", "Overlap"]
             ]
@@ -399,7 +399,7 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
 
 def create_detailed_popup(df: pd.DataFrame, dataset_name: str, up_th: float, down_th: float, fdr_th: float):
     """Create a detailed popup view for a specific Mondrian map"""
-    st.markdown(f"## 🔍 Detailed View: {dataset_name}")
+    st.markdown(f"## Detailed view: {dataset_name}")
 
     # Create two columns for the popup
     col1, col2 = st.columns([2, 1])
@@ -419,11 +419,11 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str, up_th: float, dow
         )
         
         st.info(
-            "💡 **Click pathway tiles** in the map above to select them (updates main selection)"
+            "Click pathway tiles in the map above to select them (updates main selection)"
         )
 
     with col2:
-        st.markdown("### 📊 Dataset Statistics")
+        st.markdown("### Dataset statistics")
 
         # Basic stats
         total_pathways = len(df)
@@ -437,7 +437,7 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str, up_th: float, dow
         st.metric("Significant", significant)
 
         # Color distribution
-        st.markdown("### 🎨 Color Distribution")
+        st.markdown("### Color distribution")
         colors = get_colors(df, up_th, down_th)
         color_counts = {
             "Red (Up-reg)": colors.count("red"),
@@ -451,7 +451,7 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str, up_th: float, dow
                 st.write(f"• {color}: {count}")
 
         # Top pathways by fold change
-        st.markdown("### 🔝 Top Pathways by |FC|")
+        st.markdown("### Top pathways by |FC|")
         df_with_abs_fc = df.copy()
         df_with_abs_fc["abs_wFC"] = df_with_abs_fc["wFC"].abs()
         top_pathways = df_with_abs_fc.nlargest(5, "abs_wFC")[["NAME", "wFC", "pFDR"]]
@@ -501,14 +501,14 @@ def main():
         scrolling=False,
     )
 
-    st.title("🎨 Authentic Mondrian Map Explorer")
+    st.title("Authentic Mondrian Map Explorer")
     st.markdown("*Faithful implementation of the IEEE BIBM 2024 paper algorithms*")
 
     # Sidebar controls
-    st.sidebar.header("📊 Dataset Configuration")
+    st.sidebar.header("Dataset configuration")
     
     # Threshold Controls (P2)
-    with st.sidebar.expander("⚙️ Analysis Thresholds", expanded=False):
+    with st.sidebar.expander("Analysis thresholds", expanded=False):
         up_thr = st.number_input("Up-reg threshold (wFC)", value=DEFAULTS["up"], step=0.05)
         down_thr = st.number_input("Down-reg threshold (wFC)", value=DEFAULTS["down"], step=0.05)
         fdr_thr = st.number_input("Significance (pFDR)", value=DEFAULTS["fdr"], step=0.01, format="%.3f")
@@ -592,7 +592,7 @@ def main():
             dataset_names.append(uploaded_file.name.replace(".csv", ""))
 
     # Canvas Grid Configuration
-    st.sidebar.header("🎯 Canvas Grid Layout")
+    st.sidebar.header("Canvas grid layout")
     if len(df_list) > 0:
         if len(df_list) == 1:
             canvas_cols = 1
@@ -613,7 +613,7 @@ def main():
         )
         show_full_size = st.sidebar.checkbox("Show full-size maps", False)
         maximize_maps = st.sidebar.checkbox(
-            "🔍 Maximize individual maps",
+            "Maximize individual maps",
             False,
             help="Show larger, detailed individual maps",
         )
@@ -621,7 +621,7 @@ def main():
     # Main content
     if len(df_list) > 0:
         # Canvas Grid Overview
-        st.subheader("📋 Canvas Grid Overview")
+        st.subheader("Canvas grid overview")
         
         # Explicit triggers for Detailed View (P0 fix)
         st.markdown("**Filters & Views**")
@@ -632,7 +632,7 @@ def main():
         
         for i, name in enumerate(dataset_names):
             with btn_cols[i % num_btns]:
-                if st.button(f"🔍 Detail: {name}", key=f"open_detail_{i}"):
+                if st.button(f"Detail: {name}", key=f"open_detail_{i}"):
                     st.session_state.show_detailed_view = name
                     st.rerun()
 
@@ -659,9 +659,9 @@ def main():
             display_pathway_tooltip(st.session_state.clicked_pathway_info)
 
         # Add clickable functionality info
-        st.markdown("### 🖱️ Interactive Maps")
+        st.markdown("### Interactive maps")
         st.info(
-            "💡 **Click on pathway tiles** to see full descriptions. Use the buttons above to open detailed views."
+            "Click on pathway tiles to see full descriptions. Use the buttons above to open detailed views."
         )
 
         # Check if any detailed view should be shown
@@ -669,13 +669,13 @@ def main():
             if st.session_state.show_detailed_view == name:
                 st.markdown("---")
                 create_detailed_popup(df, name, up_thr, down_thr, fdr_thr)
-                if st.button("❌ Close Detailed View", key=f"close_dt_{i}"):
+                if st.button("Close detailed view", key=f"close_dt_{i}"):
                     st.session_state.show_detailed_view = None
                     st.rerun()
 
         # Full-size individual maps
         if show_full_size:
-            st.subheader("🔍 Full-Size Authentic Mondrian Maps")
+            st.subheader("Full-size authentic Mondrian maps")
             
             # Create columns for full-size maps
             cols_per_row = 1 if maximize_maps else 2
@@ -705,14 +705,14 @@ def main():
             col1, col2 = st.columns([1, 2])
 
             with col1:
-                st.subheader("🎨 Color Legend")
+                st.subheader("Color legend")
                 legend_fig = create_color_legend()
                 st.plotly_chart(
                     legend_fig, width="stretch", config=PLOT_CONFIG
                 )
 
             with col2:
-                st.subheader("ℹ️ Authentic Algorithm")
+                st.subheader("Authentic algorithm")
                 st.markdown(
                     f"""
                 **Faithful Implementation of IEEE BIBM 2024 Paper:**
@@ -728,8 +728,8 @@ def main():
                 """
                 )
 
-        # Dataset Statistics
-        st.subheader("📈 Dataset Statistics")
+        # Dataset statistics
+        st.subheader("Dataset statistics")
         stats_cols = st.columns(min(len(df_list), 4))
         for i, (df, name) in enumerate(zip(df_list, dataset_names)):
             with stats_cols[i % 4]:
@@ -740,7 +740,7 @@ def main():
                 st.metric("Down-regulated", down_reg)
 
         # Detailed pathway tables
-        st.subheader("📋 Pathway Details")
+        st.subheader("Pathway details")
 
         # Create tabs for each dataset
         if len(df_list) > 1:
@@ -813,12 +813,12 @@ def main():
             st.markdown("---")
             display_pathway_genes(st.session_state.selected_pathway, deg_data, up_thr)
 
-            if st.button("❌ Close Gene Details"):
+            if st.button("Close gene details"):
                 st.session_state.selected_pathway = None
                 st.rerun()
 
         # Section 3: Pathway Crosstalks
-        st.subheader("🔗 Pathway Crosstalks")
+        st.subheader("Pathway crosstalks")
         st.markdown("*Pathway-to-pathway interaction details by condition*")
         
         # Crosstalk Filters
@@ -844,10 +844,10 @@ def main():
         display_pathway_crosstalks(df_list, dataset_names, min_similarity, min_overlap)
 
     else:
-        st.info("👆 Please select datasets or upload CSV files to begin visualization")
+        st.info("Please select datasets or upload CSV files to begin visualization")
 
         # Show example data format
-        st.subheader("📝 Required CSV Format")
+        st.subheader("Required CSV format")
         example_df = pd.DataFrame(
             {
                 "GS_ID": ["WAG002659", "WAG002805"],

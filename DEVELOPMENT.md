@@ -1,10 +1,11 @@
-# 🛠️ Development Guide
+# Development guide
 
 This guide is for developers who want to contribute to or extend the Mondrian Map project.
 
-## 📁 Project Architecture
+## Project architecture
 
 ### Modular Structure
+
 ```
 src/mondrian_map/           # Core Python package
 ├── core.py                # Algorithm classes (GridSystem, Block, Line)
@@ -23,7 +24,7 @@ deployment/               # Deployment documentation
 docs/                     # User documentation
 ```
 
-## 🚀 Development Setup
+## Development setup
 
 ```bash
 # Clone and setup
@@ -35,26 +36,29 @@ pip install -e .
 pip install -r config/requirements.txt
 
 # Test installation
-python -c "from mondrian_map.core import GridSystem; print('✅ Works!')"
+python -c "from mondrian_map.core import GridSystem; print('Works successfully.')"}
 streamlit run apps/streamlit_app.py
 ```
 
-## 🧬 Core Architecture
+## Core architecture
 
 ### Key Classes
+
 - **`GridSystem`**: Manages 1001×1001 canvas with 20×20 blocks
 - **`Block`**: Represents pathway tiles with colors and positions
 - **`Line`**: Grid lines and pathway connections
 - **`Corner`**: Block corners for connection algorithms
 
 ### Algorithm Flow
+
 1. **Data Preparation**: Load pathways, calculate areas, determine colors
 2. **Grid Generation**: Place blocks on grid system
 3. **Visualization**: Convert to Plotly traces with interactions
 
-## 🎨 Adding Features
+## Adding features
 
 ### New Visualization Type
+
 ```python
 # In visualization.py
 def create_custom_mondrian_map(df, **kwargs):
@@ -64,6 +68,7 @@ def create_custom_mondrian_map(df, **kwargs):
 ```
 
 ### New Data Source
+
 ```python
 # In data_processing.py  
 def load_new_format(file_path):
@@ -85,7 +90,7 @@ mypy src/mondrian_map/
 pytest tests/
 ```
 
-## 📚 Documentation
+## Documentation
 
 - Add docstrings to all functions
 - Update README for new features  
@@ -103,4 +108,4 @@ pytest tests/
 
 ---
 
-For detailed instructions, see the full documentation in the `docs/` folder. 
+For detailed instructions, see the full documentation in the `docs/` folder.

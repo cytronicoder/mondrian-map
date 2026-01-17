@@ -39,6 +39,7 @@
 ### Implementation Notes
 
 1. **Environment Setup**
+
    ```bash
    # Create a new virtual environment
    python -m venv .venv
@@ -79,16 +80,19 @@
 ## Version 1.1.1 Security Updates (2024-06-17)
 
 ### Application Security
+
 - File uploads are now sanitized: only .csv files with safe names are accepted
 - Uploaded CSVs are validated for required columns (GS_ID, wFC, pFDR, x, y)
 - Invalid or unsafe files are rejected with user-friendly warnings
 - Input validation is performed on all uploaded data
 
 ### Script Security & Robustness
+
 - Unix/macOS and Windows run scripts now check for Streamlit installation
 - Scripts automatically find an available port and clean up old processes
 - User-friendly error messages for missing dependencies or port conflicts
 
 ### Usage Notes
+
 - Use `./scripts/run_streamlit.sh` (Unix/macOS) or `scripts\run_streamlit_win.bat` (Windows) to launch the app safely
-- If you encounter errors, check the troubleshooting section in the README 
+- If you encounter errors, check the troubleshooting section in the README

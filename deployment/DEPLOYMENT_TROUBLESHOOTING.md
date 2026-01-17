@@ -1,20 +1,23 @@
-# 🔧 Deployment Troubleshooting Guide
+# Deployment Troubleshooting Guide
 
 ## Issue: Requirements Installation Error
 
 ### Problem
+
 Streamlit Cloud shows "Error installing requirements" with dependency conflicts.
 
 ### Root Cause
+
 The original `requirements.txt` contained 130+ packages with version conflicts and unnecessary dependencies.
 
-### Solution Applied ✅
+### Solution applied
 
 1. **Simplified Requirements**: Reduced from 130+ packages to only 4 essential ones
 2. **Version Compatibility**: Used broader version ranges instead of exact pins
 3. **Removed Conflicts**: Eliminated packages causing dependency hell
 
 ### New Clean Requirements
+
 ```
 streamlit>=1.28.0
 pandas>=2.0.0  
@@ -53,23 +56,27 @@ If still having issues, try these steps:
 ## Common Issues & Fixes
 
 ### Issue: "Package not found"
+
 **Fix**: Ensure all packages in requirements.txt are available on PyPI
 
 ### Issue: "Memory limit exceeded"  
+
 **Fix**: The minimal requirements should resolve this
 
 ### Issue: "Build timeout"
+
 **Fix**: Simplified requirements should build much faster
 
 ### Issue: "Import errors"
+
 **Fix**: All imports in app.py should work with the 4 core packages
 
 ## Files Created for Deployment
 
-- ✅ `requirements.txt` - Minimal, clean dependencies
-- ✅ `.streamlit/config.toml` - Streamlit configuration
-- ✅ `requirements_original_backup.txt` - Backup of original
-- ✅ `requirements_streamlit_cloud.txt` - Alternative version
+- `requirements.txt` - Minimal, clean dependencies
+- `.streamlit/config.toml` - Streamlit configuration
+- `requirements_original_backup.txt` - Backup of original
+- `requirements_streamlit_cloud.txt` - Alternative version
 
 ## Verification Steps
 
@@ -83,25 +90,27 @@ After deployment:
 ## Alternative Deployment (If Streamlit Cloud Fails)
 
 ### Railway (Backup Option)
+
 1. Go to [railway.app](https://railway.app)
 2. Connect GitHub repository
 3. Deploy automatically
 4. Uses the same clean requirements.txt
 
 ### Render (Backup Option)
+
 1. Go to [render.com](https://render.com)  
 2. Create new Web Service
 3. Connect GitHub repository
 4. Build command: `pip install -r requirements.txt`
 5. Start command: `streamlit run app.py --server.port=$PORT --server.address=0.0.0.0`
 
-## Success Indicators
+## Success indicators
 
-✅ **Build completes** without errors  
-✅ **App starts** and shows interface  
-✅ **Data loads** correctly  
-✅ **Visualizations render** properly  
-✅ **Interactive features** work  
+- Build completes without errors
+- App starts and shows the interface
+- Data loads correctly
+- Visualizations render properly
+- Interactive features operate as expected
 
 ## Need Help?
 
@@ -117,17 +126,21 @@ The simplified approach should resolve the dependency conflicts you were experie
 ## New Script-Based Launch (v1.1.1)
 
 ### Unix/macOS
+
 - Use `./scripts/run_streamlit.sh` to launch the app
 - Script finds an available port, cleans up old processes, and checks for Streamlit
 
 ### Windows
+
 - Use `scripts\run_streamlit_win.bat` to launch the app
 - Script finds an available port, cleans up old processes, and checks for Streamlit
 
 ### Common Issues
+
 - **Streamlit not installed**: Script will print an error and exit. Run `pip install -r config/requirements.txt`.
 - **Port in use**: Script will try the next available port automatically.
 - **File upload rejected**: Only .csv files with safe names and required columns are accepted. Check your file format.
 
 ## Security Improvements
-- File uploads are sanitized and validated for type and columns 
+
+- File uploads are sanitized and validated for type and columns

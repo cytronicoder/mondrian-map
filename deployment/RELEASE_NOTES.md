@@ -2,7 +2,7 @@
 
 ## Version 1.11.0 (December 14, 2025)
 
-### 🎨 Enhanced Grid Lines & Authentic Mondrian Aesthetics
+### Enhanced grid lines & authentic Mondrian aesthetics
 
 This release significantly improves the visual authenticity and user experience of the Mondrian Map Explorer with smart grid line management, enhanced interactivity, and refined UI elements.
 
@@ -10,7 +10,8 @@ This release significantly improves the visual authenticity and user experience 
 
 ## 🆕 New Features
 
-### 🎯 Smart Grid Line System
+### Smart grid line system
+
 - **Authentic Mondrian Principles**: Implemented intelligent grid line management following true Mondrian aesthetics
 - **Intersection Avoidance**: Grid lines automatically avoid intersecting pathway tile interiors
 - **Structural Purpose Only**: Lines only exist where they serve meaningful structural purposes
@@ -19,19 +20,22 @@ This release significantly improves the visual authenticity and user experience 
 - **Minimum Segment Length**: Only substantial segments (>40px) are kept to avoid visual clutter
 
 ### 🏷️ Pathway ID Management
+
 - **Toggle Control**: Added sidebar checkbox to show/hide pathway ID labels
 - **Default Off**: Pathway IDs are now hidden by default for cleaner small-view appearance
 - **Regular Font**: Changed from bold "Arial Black" to regular "Arial" font for better readability
 - **Universal Control**: Toggle works across all visualization modes (canvas, full-size, detailed views)
 
 ### 🖱️ Enhanced Click Functionality
+
 - **Direct Tile Interaction**: Click directly on pathway tiles (no separate buttons needed)
 - **Full-Screen Activation**: Clicking any tile automatically opens full-screen detailed view of the entire dataset
 - **Simplified Hover**: Hover shows pathway name + "Click for full-screen view" hint
 - **Session State Management**: Proper state tracking for detailed view navigation
 - **Close Button**: Easy "❌ Close Detailed View" button to return to overview
 
-### 🔗 Improved Connecting Lines
+### Improved connecting lines
+
 - **Enhanced Visibility**: Colored Manhattan relationship lines now use 2pt thickness (vs 1pt grid lines)
 - **Better Contrast**: Relationship lines stand out more prominently from background grid
 - **Maintained Colors**: Red, blue, and yellow connecting lines preserve their biological meaning
@@ -41,6 +45,7 @@ This release significantly improves the visual authenticity and user experience 
 ## 🔧 Technical Improvements
 
 ### Grid Line Algorithm
+
 - **`create_smart_grid_lines()`**: New intelligent grid line generation system
 - **`get_meaningful_tile_edges()`**: Identifies structurally important tile boundaries
 - **`find_structural_*_segments()`**: Creates line segments only where needed
@@ -48,12 +53,14 @@ This release significantly improves the visual authenticity and user experience 
 - **Intersection Detection**: Advanced logic to detect and avoid tile interior intersections
 
 ### User Interface Enhancements
+
 - **Streamlined Navigation**: Removed example buttons in favor of direct interaction
 - **Consistent Styling**: Unified toggle control across all map views
 - **Responsive Design**: Better handling of different screen sizes and viewing modes
 - **Clean Aesthetics**: Reduced visual clutter while maintaining functionality
 
 ### Bug Fixes
+
 - **KeyError Resolution**: Fixed pandas `nlargest()` function error in detailed popup
 - **State Management**: Improved session state handling for detailed views
 - **Font Consistency**: Standardized font usage across all text elements
@@ -61,15 +68,17 @@ This release significantly improves the visual authenticity and user experience 
 
 ---
 
-## 🎨 Visual Improvements
+## Visual improvements
 
 ### Authentic Mondrian Appearance
+
 - **Minimal Grid Lines**: Only essential structural lines remain visible
 - **No Tile Borders**: Seamless tile appearance with matching border colors
 - **Clean Composition**: Follows authentic Mondrian principles of minimal, purposeful elements
 - **Professional Look**: Reduced visual noise while maintaining scientific accuracy
 
 ### Enhanced Interactivity
+
 - **Intuitive Clicks**: Direct interaction with visualization elements
 - **Clear Feedback**: Immediate visual feedback for user actions
 - **Smooth Transitions**: Proper state management for view changes
@@ -80,12 +89,14 @@ This release significantly improves the visual authenticity and user experience 
 ## 🔄 Migration from Version 1.1.0
 
 ### What's Changed
+
 - **Grid Line Behavior**: Much cleaner, more authentic Mondrian appearance
 - **Pathway ID Display**: Now hidden by default, can be toggled on/off
 - **Click Interaction**: Direct tile clicking replaces separate example buttons
 - **Line Thickness**: Relationship lines are now more prominent
 
 ### Backward Compatibility
+
 - **Data Format**: Fully compatible with existing datasets
 - **Core Functionality**: All analysis features preserved and enhanced
 - **Configuration**: Previous settings work with new toggle controls
@@ -95,25 +106,29 @@ This release significantly improves the visual authenticity and user experience 
 ## 🐛 Bug Fixes
 
 ### Critical Fixes
+
 - **Pandas KeyError**: Resolved `df.nlargest(5, df['wFC'].abs())` error by creating temporary column
 - **Session State**: Fixed state management issues in detailed view navigation
 - **Click Detection**: Improved click event handling and response
 
 ### Visual Fixes
+
 - **Grid Line Positioning**: Proper alignment with tile boundaries
 - **Font Rendering**: Consistent font styling across all text elements
 - **Hover Tooltips**: Simplified and more informative hover messages
 
 ---
 
-## 📋 Usage Notes
+## Usage notes
 
 ### New Controls
+
 - **Pathway ID Toggle**: Use sidebar checkbox "Show pathway IDs" to control label visibility
 - **Direct Clicking**: Click any pathway tile to open full-screen detailed analysis
 - **Close Detailed View**: Use "❌ Close Detailed View" button to return to overview
 
 ### Best Practices
+
 - **Small Views**: Keep pathway IDs off for cleaner appearance in canvas grid
 - **Large Views**: Turn pathway IDs on for detailed analysis and identification
 - **Navigation**: Use direct tile clicking for fastest access to detailed views
@@ -122,7 +137,7 @@ This release significantly improves the visual authenticity and user experience 
 
 ## Version 1.1.0 (December 14, 2025)
 
-### 🎉 Major Release: Authentic Mondrian Map Web Application
+### Major release: Authentic Mondrian Map Web Application
 
 This release introduces a complete interactive web application that faithfully implements the authentic Mondrian Map algorithm from our bioRxiv paper "Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis".
 
@@ -130,13 +145,14 @@ This release introduces a complete interactive web application that faithfully i
 
 ## 🆕 New Features
 
-### 🎨 Authentic Algorithm Implementation
+### Authentic algorithm implementation
+
 - **Complete Class System**: Implemented exact `GridSystem`, `Block`, `Line`, `Corner` classes with parameters matching the research notebooks
-- **3-Stage Generation Process**: 
+- **3-Stage Generation Process**:
   1. Block placement based on pathway coordinates and fold change
   2. Manhattan relationship lines connecting related pathways
   3. Line extensions for complete Mondrian aesthetic
-- **Authentic Color Scheme**: 
+- **Authentic Color Scheme**:
   - Red: Up-regulated pathways (FC ≥ 1.25)
   - Blue: Down-regulated pathways (FC ≤ 0.75)
   - Yellow: Moderate change pathways
@@ -145,7 +161,8 @@ This release introduces a complete interactive web application that faithfully i
 - **Area Scaling**: Exact `abs(log2(wFC)) * 4000` formula from the paper
 - **Light Gray Grid Lines**: Authentic Mondrian appearance with outer boundary and internal grid lines
 
-### 🖼️ Interactive Web Application
+### Interactive web application
+
 - **Streamlit-based Interface**: Professional, responsive web application
 - **Canvas Grid System**: Compare multiple datasets simultaneously in customizable grid layouts (1×1 to 4×4)
 - **Detailed Popup Views**: Click any dataset button for comprehensive analysis with:
@@ -156,7 +173,8 @@ This release introduces a complete interactive web application that faithfully i
 - **Adaptive Text Scaling**: Pathway labels scale with tile size (8-24px range)
 - **Smart Label Positioning**: Labels positioned above tiles with fallback to inside positioning
 
-### 📊 Data Integration & Analysis
+### Data integration and analysis
+
 - **Multi-Dataset Support**: All 6 pre-computed datasets from the glioblastoma case study
   - Aggressive R1/R2
   - Baseline R1/R2  
@@ -167,6 +185,7 @@ This release introduces a complete interactive web application that faithfully i
 - **Comprehensive Statistics**: Real-time analysis of pathway distributions and significance
 
 ### 🔧 User Interface & Experience
+
 - **Multi-Select Configuration**: Choose any combination of datasets for comparison
 - **Viewing Modes**:
   - Canvas Grid Overview: Side-by-side dataset comparison
@@ -185,6 +204,7 @@ This release introduces a complete interactive web application that faithfully i
 ## 🔧 Technical Improvements
 
 ### Algorithm Fidelity
+
 - **Exact Parameter Matching**: All constants match the research implementation
   - Canvas: 1001×1001 pixels
   - Block size: 20×20 pixels
@@ -195,12 +215,14 @@ This release introduces a complete interactive web application that faithfully i
 - **Color Enum Integration**: Proper conversion between Python enums and Plotly requirements
 
 ### Performance & Reliability
+
 - **Efficient Data Loading**: Cached pathway information loading
 - **Error Handling**: Robust file upload validation and error messages
 - **Memory Management**: Proper canvas clearing between generations
 - **Responsive Design**: Optimized for different screen sizes and viewing modes
 
 ### Code Architecture
+
 - **Modular Design**: Separated concerns for algorithm, visualization, and UI
 - **Helper Functions**: Complete set of utility functions from research notebooks
 - **Type Safety**: Proper type hints and enum usage
@@ -211,12 +233,14 @@ This release introduces a complete interactive web application that faithfully i
 ## 📈 Data & Integration
 
 ### Pathway Data
+
 - **Complete Dataset Coverage**: All pathways from the glioblastoma case study
 - **Rich Annotations**: NAME, Description, Ontology, Disease information
 - **Network Relationships**: Pathway-pathway connection data for Manhattan lines
 - **Coordinate System**: Exact x,y positioning from the research
 
 ### File Format Support
+
 - **CSV Upload**: Support for custom datasets with required columns:
   - `GS_ID`: Gene set/pathway identifier
   - `wFC`: Weighted fold change
@@ -227,15 +251,17 @@ This release introduces a complete interactive web application that faithfully i
 
 ---
 
-## 🎯 User Experience Enhancements
+## User experience enhancements
 
 ### Navigation & Interaction
+
 - **Intuitive Interface**: Clear section organization and navigation
 - **Contextual Help**: Tooltips and help text throughout the application
 - **Responsive Feedback**: Real-time updates and loading indicators
 - **Professional Styling**: Modern UI design with consistent theming
 
 ### Analysis Features
+
 - **Statistical Overview**: Comprehensive dataset statistics
 - **Comparative Analysis**: Side-by-side dataset comparison
 - **Detailed Exploration**: Deep-dive analysis with maximized views
@@ -246,11 +272,13 @@ This release introduces a complete interactive web application that faithfully i
 ## 🔄 Migration from Version 1.0
 
 ### What's Changed
+
 - **Complete Application Rewrite**: From simple scatter plots to authentic Mondrian maps
 - **Enhanced Data Integration**: From basic CSV loading to comprehensive pathway analysis
 - **Professional UI**: From basic Streamlit interface to feature-rich application
 
 ### Backward Compatibility
+
 - **Data Format**: Maintains compatibility with existing CSV data files
 - **Core Functionality**: All original research capabilities preserved and enhanced
 - **Notebook Integration**: Research notebooks remain functional alongside the web app
@@ -260,12 +288,14 @@ This release introduces a complete interactive web application that faithfully i
 ## 🐛 Bug Fixes & Improvements
 
 ### Visual Fixes
+
 - **Grid Line Visibility**: Ensured all grid lines are properly visible
 - **Text Positioning**: Fixed label positioning issues with proper centering and fallback
 - **Color Consistency**: Resolved color enum conversion issues
 - **Border Rendering**: Achieved clean borderless tile appearance
 
 ### Performance Improvements
+
 - **Faster Rendering**: Optimized Plotly trace generation
 - **Memory Usage**: Improved canvas clearing and object management
 - **Loading Times**: Cached data loading for better responsiveness
@@ -275,11 +305,13 @@ This release introduces a complete interactive web application that faithfully i
 ## 📋 Requirements
 
 ### System Requirements
+
 - Python 3.7+
 - Modern web browser (Chrome, Firefox, Safari, Edge)
 - 4GB+ RAM recommended for large datasets
 
 ### Dependencies
+
 - streamlit
 - plotly
 - pandas
@@ -287,6 +319,7 @@ This release introduces a complete interactive web application that faithfully i
 - pathlib
 
 ### Installation
+
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
@@ -297,6 +330,7 @@ streamlit run app.py
 ## 🔮 Future Roadmap
 
 ### Planned Features
+
 - **Export Functionality**: Save high-resolution images and data
 - **Advanced Filtering**: Filter pathways by various criteria
 - **Batch Processing**: Process multiple datasets simultaneously
@@ -304,6 +338,7 @@ streamlit run app.py
 - **Enhanced Analytics**: Statistical testing and comparison tools
 
 ### Community Contributions
+
 We welcome contributions! Please see our contribution guidelines and open issues on GitHub.
 
 ---
@@ -311,6 +346,7 @@ We welcome contributions! Please see our contribution guidelines and open issues
 ## 📞 Support & Contact
 
 For questions, bug reports, or feature requests:
+
 - **Email**: [jakechen@uab.edu](mailto:jakechen@uab.edu) or [fuad021@uab.edu](mailto:fuad021@uab.edu)
 - **GitHub Issues**: [https://github.com/aimed-lab/mondrian-map/issues](https://github.com/aimed-lab/mondrian-map/issues)
 - **Documentation**: See README.md for detailed usage instructions
@@ -323,18 +359,18 @@ If you use this software in your research, please cite our paper:
 
 ```bibtex
 @article {AlAbir_MondrianMap,
-	author = {Al Abir, Fuad and Chen, Jake Y.},
-	title = {Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis},
-	elocation-id = {2024.04.11.589093},
-	year = {2024},
-	doi = {10.1101/2024.04.11.589093},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/early/2024/08/19/2024.04.11.589093},
-	eprint = {https://www.biorxiv.org/content/early/2024/08/19/2024.04.11.589093.full.pdf},
-	journal = {bioRxiv}
+ author = {Al Abir, Fuad and Chen, Jake Y.},
+ title = {Mondrian Abstraction and Language Model Embeddings for Differential Pathway Analysis},
+ elocation-id = {2024.04.11.589093},
+ year = {2024},
+ doi = {10.1101/2024.04.11.589093},
+ publisher = {Cold Spring Harbor Laboratory},
+ URL = {https://www.biorxiv.org/content/early/2024/08/19/2024.04.11.589093},
+ eprint = {https://www.biorxiv.org/content/early/2024/08/19/2024.04.11.589093.full.pdf},
+ journal = {bioRxiv}
 }
 ```
 
 ---
 
-*Thank you for using Mondrian Map Explorer! We hope this tool enhances your pathway analysis research.* 
+*Thank you for using Mondrian Map Explorer! We hope this tool enhances your pathway analysis research.*

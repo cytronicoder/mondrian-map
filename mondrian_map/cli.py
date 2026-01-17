@@ -64,7 +64,7 @@ def cmd_pipeline(args):
 
     try:
         outputs = pipeline.run()
-        print(f"✅ Pipeline completed successfully!")
+        print("Pipeline completed successfully.")
         print(f"   Entities: {len(outputs.entities_df)} pathways")
         print(f"   Relations: {len(outputs.relations_df)} edges")
         print(f"   Output directory: {config.output_dir}")
@@ -99,7 +99,7 @@ def cmd_reproduce(args):
             use_cache=args.use_cache,
         )
 
-        print(f"\n✅ Successfully reproduced {case_study.upper()} case study!")
+        print(f"\nSuccessfully reproduced {case_study.upper()} case study.")
         print(f"   Entities: {outputs.entities_df.shape}")
         print(f"   Output directory: {output_dir}")
 
@@ -215,7 +215,7 @@ def cmd_visualize(args):
             print(f"Error: Unknown format: {output_format}", file=sys.stderr)
             return 1
 
-        print(f"✅ Mondrian Map saved to {args.out}")
+        print(f"Mondrian Map saved to {args.out}")
         return 0
 
     except Exception as e:
@@ -244,7 +244,7 @@ def cmd_config(args):
 
         output_path = Path(args.output or "config.yaml")
         config.to_yaml(output_path)
-        print(f"✅ Configuration saved to {output_path}")
+        print(f"Configuration saved to {output_path}")
         return 0
 
     elif args.action == "validate":
@@ -256,11 +256,11 @@ def cmd_config(args):
         warnings = validate_config(config)
 
         if warnings:
-            print("⚠️  Configuration warnings:")
+            print("Configuration warnings:")
             for warning in warnings:
                 print(f"   - {warning}")
         else:
-            print("✅ Configuration is valid")
+            print("Configuration is valid")
 
         return 0
 

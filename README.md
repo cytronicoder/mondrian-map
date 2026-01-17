@@ -1,4 +1,4 @@
-# 🎨 Mondrian Map Explorer
+# Mondrian Map Explorer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -11,9 +11,10 @@ This repository contains a faithful implementation of the Mondrian Map algorithm
 
 ![Mondrian Map Banner](figures/banner.png)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Run Locally
+
 ```bash
 # Clone the repository
 git clone https://github.com/your-username/mondrian-map.git
@@ -27,9 +28,11 @@ streamlit run apps/streamlit_app.py
 ```
 
 ### Option 2: Try Online
-🌐 **[Live Demo](https://your-deployment-url.streamlit.app)** - Try the app without installation
+
+**Live Demo:** [https://your-deployment-url.streamlit.app](https://your-deployment-url.streamlit.app) — Try the app without installation
 
 ### Option 3: Command Line Interface
+
 ```bash
 # Install the package
 pip install -e .
@@ -41,7 +44,7 @@ mondrian-map reproduce --case-study gbm --out outputs/ --use-cache
 mondrian-map visualize --entities my_pathways.csv --out my_map.html --show-ids
 ```
 
-## 📊 Reproduce Paper Figures
+## Reproduce paper figures
 
 To reproduce Figures 1-2 from the paper, run:
 
@@ -54,6 +57,7 @@ mondrian-map reproduce --case-study gbm --out outputs/ --use-cache
 ```
 
 This will:
+
 1. Load precomputed PAGER/GNPA results from `data/case_study/`
 2. Load pathway embeddings (t-SNE coordinates)
 3. Generate the Mondrian Map visualization
@@ -67,7 +71,7 @@ To run the full pipeline without using cached artifacts:
 mondrian-map reproduce --case-study gbm --out outputs/ --no-cache
 ```
 
-⚠️ **Note**: Running without cache requires PAGER API access and may take 10-30 minutes.
+Note: Running without cache requires PAGER API access and may take 10–30 minutes.
 
 ## 🗺️ Methods → Code Mapping
 
@@ -93,18 +97,18 @@ mondrian-map reproduce --case-study gbm --out outputs/ --no-cache
 | Canvas size | 1001 × 1001 | `src/mondrian_map/core.py` |
 | Block grid | 20 × 20 | `src/mondrian_map/core.py` |
 
-## 📁 Repository Structure
+## Repository structure
 
 ```
 mondrian-map/
 ├── 📱 apps/                    # Streamlit applications
 │   └── streamlit_app.py        # Main web application
-├── 🧬 src/                     # Core Python modules
+├── src/                     # Core Python modules
 │   └── mondrian_map/           # Main package
 │       ├── core.py             # Core algorithm classes
 │       ├── data_processing.py  # Data handling utilities
 │       └── visualization.py    # Plotting functions
-├── 📊 data/                    # Dataset files
+├── data/                    # Dataset files
 │   └── case_study/             # Example datasets
 ├── 📓 notebooks/               # Jupyter notebooks
 │   ├── visualize_mondrian_map.ipynb
@@ -115,18 +119,20 @@ mondrian-map/
 │   └── runtime.txt            # Python version
 ├── 🚢 deployment/             # Deployment guides
 ├── 📚 docs/                   # Documentation
-├── 🖼️ figures/                # Images and plots
-└── 📄 static/                 # Static assets
+├── figures/                # Images and plots
+└── static/                 # Static assets
 ```
 
-## 🎯 Features
+## Features
 
-### ✨ Authentic Algorithm Implementation
+### Authentic algorithm implementation
+
 - **3-Stage Generation Process**: Grid System → Block Placement → Line Generation
 - **Exact Classes**: `GridSystem`, `Block`, `Line`, `Corner` from original research
 - **Authentic Parameters**: 1001×1001 canvas, 20×20 block grid, proper adjustments
 
-### 🎨 Visual Features
+### Visual features
+
 - **5-Color Mondrian Scheme**: White, Black, Yellow, Red, Blue
 - **Smart Grid Lines**: Structural lines that avoid intersecting tiles
 - **Interactive Canvas**: Click tiles for detailed pathway information
@@ -134,33 +140,37 @@ mondrian-map/
 - **Enhanced Tooltips**: Improved hover and click interactions
 - **Session State Management**: Persistent user interactions
 
-### 📊 Data Processing
+### Data processing
+
 - **Flexible Input**: CSV files with pathway data
 - **Rich Annotations**: Pathway descriptions, ontologies, disease associations
 - **Network Analysis**: Pathway crosstalk visualization
 - **Statistical Summaries**: Regulation statistics and significance testing
 - **Input Validation**: Secure data processing
 
-## 🧬 Algorithm Details
+## Algorithm details
 
 The implementation follows the exact 3-stage process from the research paper:
 
 ### Stage 1: Grid System Initialization
+
 ```python
 grid_system = GridSystem(1001, 1001, 20, 20)  # Canvas: 1001×1001, Blocks: 20×20
 ```
 
 ### Stage 2: Block Placement
+
 - **Area Calculation**: `abs(log2(wFC)) * 4000`
 - **Color Mapping**: Based on fold-change and p-value thresholds
 - **Position Optimization**: Centered around pathway coordinates
 
 ### Stage 3: Line Generation
+
 - **Smart Grid Lines**: Avoid tile intersections, maintain structure
 - **Manhattan Connections**: Pathway relationship visualization
 - **Authentic Styling**: Proper line widths and adjustments
 
-## 📝 Data Format
+## Data format
 
 Your CSV files should contain these columns:
 
@@ -173,19 +183,20 @@ Your CSV files should contain these columns:
 | `y` | Y-coordinate | `468.9` |
 | `NAME` | Pathway name | `Glycolysis` |
 
-## 🎨 Color Scheme
+## Color scheme
 
 | Color | Meaning | Criteria |
 |-------|---------|----------|
-| 🔴 **Red** | Up-regulated | FC ≥ 1.0, p < 0.05 |
-| 🔵 **Blue** | Down-regulated | FC ≤ -1.0, p < 0.05 |
-| 🟡 **Yellow** | Moderate change | 0.5 ≤ \|FC\| < 1.0, p < 0.05 |
-| ⚫ **Black** | Neutral | \|FC\| < 0.5, p < 0.05 |
-| ⚪ **White** | Non-significant | p ≥ 0.05 |
+| Red | Up-regulated | FC ≥ 1.0, p < 0.05 |
+| Blue | Down-regulated | FC ≤ -1.0, p < 0.05 |
+| Yellow | Moderate change | 0.5 ≤ \|FC\| < 1.0, p < 0.05 |
+| Black | Neutral | \|FC\| < 0.5, p < 0.05 |
+| White | Non-significant | p ≥ 0.05 |
 
-## 🛠️ Development
+## Development
 
 ### Setting up Development Environment
+
 ```bash
 # Clone and enter directory
 git clone https://github.com/your-username/mondrian-map.git
@@ -203,15 +214,17 @@ pip install -e .
 ```
 
 ### Running Tests
+
 ```bash
 # Run the Streamlit app
 streamlit run apps/streamlit_app.py
 
 # Test with example data
-python -c "from src.mondrian_map.core import GridSystem; print('✅ Core module imported successfully')"
+python -c "from src.mondrian_map.core import GridSystem; print('Core module imported successfully.')"
 ```
 
 ### Project Structure Philosophy
+
 - **`src/`**: Core reusable modules following Python packaging standards
 - **`apps/`**: User-facing applications (Streamlit, CLI tools, etc.)
 - **`config/`**: All configuration and deployment files
@@ -227,9 +240,10 @@ python -c "from src.mondrian_map.core import GridSystem; print('✅ Core module 
 - **[Troubleshooting](deployment/DEPLOYMENT_TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Release Notes](docs/releases/RELEASE_NOTES.md)** - Version history and changes
 
-## 🔄 Recent Updates
+## Recent updates
 
 ### Version 1.1.0 (2024-06-17)
+
 - Enhanced interactive visualization with improved tooltip handling
 - Added session state management for better user experience
 - Implemented click interactions for pathway information display
@@ -238,7 +252,7 @@ python -c "from src.mondrian_map.core import GridSystem; print('✅ Core module 
 
 For a complete list of changes, see [RELEASE_NOTES.md](docs/releases/RELEASE_NOTES.md).
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our contributing guidelines:
 
@@ -248,7 +262,7 @@ We welcome contributions! Please see our contributing guidelines:
 4. **Push** to the branch (`git push origin feature/amazing-feature`)
 5. **Open** a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -266,7 +280,7 @@ If you use this tool in your research, please cite:
 }
 ```
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Original research paper authors for the innovative Mondrian Map concept
 - Streamlit team for the excellent web app framework
@@ -277,38 +291,46 @@ If you use this tool in your research, please cite:
 
 - **Issues**: [GitHub Issues](https://github.com/your-username/mondrian-map/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-username/mondrian-map/discussions)
-- **Email**: your-email@example.com
+- **Email**: <your-email@example.com>
 
-## 🛠️ Running the App
+## Running the app
 
 ### Unix/macOS
+
 To run the app with automatic port management and error handling:
+
 ```bash
 ./scripts/run_streamlit.sh
 ```
+
 - Finds an available port
 - Cleans up existing Streamlit processes
 - Checks for Streamlit installation
 
 ### Windows
+
 To run the app on Windows:
+
 ```bat
 scripts\run_streamlit_win.bat
 ```
+
 - Finds an available port
 - Cleans up existing Streamlit processes
 - Checks for Streamlit installation
 
 ### Troubleshooting
+
 - If you see a port conflict, the script will automatically try the next available port.
 - If Streamlit is not installed, you'll get a clear error message with installation instructions.
 - Uploaded files are validated for name, type, and required columns for security.
 
-## 🔒 Security Features
+## Security features
+
 - File uploads are sanitized and validated (only .csv, safe names, required columns)
 - Input validation is performed on all uploaded data
 - Error handling for missing dependencies and invalid files
 
 ---
 
-**Made with ❤️ for the bioinformatics community**
+Made for the bioinformatics community.
