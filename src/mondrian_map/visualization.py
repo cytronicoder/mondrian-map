@@ -815,6 +815,24 @@ def create_authentic_mondrian_map(
     colors = data["colors"]
     pathway_ids = data["pathway_ids"]
     relations = data["relations"]
+    suffix_to_row: Dict[str, pd.Series] = {}
+    # Build suffix-to-row mapping for pathway data lookup
+    # Note: Duplicate GS_IDs (same ID appearing multiple times) will use the last occurrence
+    # This only detects suffix collisions (different GS_IDs with same 4-char suffix)
+    for _, row in df.iterrows():
+        gs_id = str(row["GS_ID"])
+        suffix = gs_id[-4:]
+        existing_row = suffix_to_row.get(suffix)
+        if existing_row is not None:
+            existing_gs_id = str(existing_row["GS_ID"])
+            if existing_gs_id != gs_id:
+                raise ValueError(
+                    f"Detected GS_ID suffix collision for suffix '{suffix}': "
+                    f"{existing_gs_id} and {gs_id}. "
+                    "GS_ID suffixes must be unique; please use full GS_IDs or "
+                    "disambiguate the identifiers."
+                )
+        suffix_to_row[suffix] = row
 
     # Initialize canvas
     blank_canvas()
@@ -827,7 +845,14 @@ def create_authentic_mondrian_map(
     )
 
     # Get rectangles from grid system
-    rectangles = grid_system.plot_points_fill_blocks(center_points_sorted, areas_sorted)
+    rectangles = grid_system.plot_points_fill_blocks(
+        center_points_sorted,
+        areas_sorted,
+        avoid_overlap=True,
+        padding=LINE_WIDTH,
+        snap_to_grid=True,
+        nudge=True,
+    )
 
     # Create border lines
     Line(Point(0, 0), Point(1000, 0), LineDir.RIGHT, Colors.GRAY, THIN_LINE_WIDTH)
@@ -896,7 +921,26 @@ def create_authentic_mondrian_map(
             lines_to_extend.extend(lines)
 
     # Convert to Plotly traces
+    # IMPORTANT: Trace order determines z-order (rendering layers)
+    # 1. Smart grid lines (bottom layer - drawn first)
+    # 2. Tile rectangles (middle layer - drawn on top of grid)
+    # 3. Invisible markers (for interactivity - same layer as tiles)
+    # 4. Pathway ID text (top layer - drawn last, visible on tiles)
+    # 5. Canvas borders and Manhattan lines (top decorative layer)
     traces = []
+
+    # Add smart grid lines (lightest gray, thin lines)
+    for line in smart_grid_lines:
+        traces.append(
+            go.Scatter(
+                x=[line.point_a.x, line.point_b.x],
+                y=[line.point_a.y, line.point_b.y],
+                mode="lines",
+                line=dict(color="#F5F5F5", width=1),
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
 
     # Add blocks as filled rectangles
     for block in all_blocks:
@@ -916,9 +960,19 @@ def create_authentic_mondrian_map(
             block.top_left_p[1],
         ]
 
-        # Get pathway info for hover
-        pathway_idx = pathway_ids_sorted.index(block.id)
-        pathway_row = df[df["GS_ID"].str.endswith(block.id)].iloc[0]
+        pathway_row = suffix_to_row.get(block.id)
+        # Handle missing pathway data (shouldn't occur in normal operation, but provides
+        # graceful degradation if block.id doesn't match any GS_ID suffix in dataframe)
+        row = pathway_row if pathway_row is not None else {}
+        payload = {
+            "name": row.get("NAME", ""),
+            "pathway_id": row.get("GS_ID", ""),
+            "fold_change": float(row.get("wFC", np.nan)),
+            "pvalue": float(row.get("pFDR", np.nan)),
+            "ontology": row.get("Ontology", ""),
+            "disease": row.get("Disease", ""),
+            "description": row.get("Description", ""),
+        }
 
         # Convert Colors enum to string for Plotly
         fill_color = (
@@ -933,28 +987,57 @@ def create_authentic_mondrian_map(
                 y=y_coords,
                 fill="toself",
                 fillcolor=fill_color,
-                line=dict(width=0),
+                line=dict(color=str(Colors.BLACK.value), width=LINE_WIDTH),
                 mode="lines",
                 hoverinfo="none",
                 name="",
                 showlegend=False,
-                customdata=None,
-                meta={"dataset": dataset_name, "pathway_id": pathway_row["GS_ID"]},
+                customdata=[payload],
+                meta={
+                    "dataset": dataset_name,
+                    "pathway_id": payload["pathway_id"],
+                },
             )
         )
 
-    # Add smart grid lines (lightest gray, thin lines)
-    for line in smart_grid_lines:
+        cx = (block.top_left_p[0] + block.bottom_right_p[0]) / 2
+        cy = (block.top_left_p[1] + block.bottom_right_p[1]) / 2
+        width = abs(block.bottom_right_p[0] - block.top_left_p[0])
+        height = abs(block.bottom_right_p[1] - block.top_left_p[1])
+        min_side = min(width, height)
+        
+        # Scale marker size based on tile dimensions to prevent overflow beyond boundaries
+        # min_side is in data coordinates (0-1000 range), but marker size is in pixels
+        # Formula: 60% of tile's minimum dimension, capped between 6-18 pixels
+        # Examples: 20-unit tile → 12px marker, 200-unit tile → 18px marker (capped)
+        marker_size = max(6, min(18, int(min_side * 0.6)))
+
         traces.append(
             go.Scatter(
-                x=[line.point_a.x, line.point_b.x],
-                y=[line.point_a.y, line.point_b.y],
-                mode="lines",
-                line=dict(color="#F5F5F5", width=1),
-                showlegend=False,
+                x=[cx],
+                y=[cy],
+                mode="markers",
+                marker=dict(size=marker_size, opacity=0),
+                customdata=[payload],
                 hoverinfo="skip",
+                showlegend=False,
             )
         )
+
+        if show_pathway_ids and min_side >= 30:
+            font_size = max(8, min(16, int(min_side / 6)))
+            traces.append(
+                go.Scatter(
+                    x=[cx],
+                    y=[cy],
+                    mode="text",
+                    text=[block.id],
+                    textposition="middle center",
+                    textfont=dict(size=font_size, color="black"),
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
 
     # Add canvas border lines
     border_lines = [line for line in Line.instances if line.strength == THIN_LINE_WIDTH]
@@ -981,7 +1064,7 @@ def create_authentic_mondrian_map(
                 x=[line.point_a.x, line.point_b.x],
                 y=[line.point_a.y, line.point_b.y],
                 mode="lines",
-                line=dict(color=line_color, width=2),
+                line=dict(color=line_color, width=LINE_WIDTH),
                 showlegend=False,
                 hoverinfo="skip",
             )

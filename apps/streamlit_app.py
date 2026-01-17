@@ -109,9 +109,22 @@ def update_clicked_pathway_info(clicked_data):
         and hasattr(clicked_data, "selection")
         and clicked_data.selection.points
     ):
-        pt = clicked_data.selection.points[0]
-        if isinstance(pt, dict) and pt.get("customdata"):
-            st.session_state.clicked_pathway_info = pt["customdata"]
+        for pt in clicked_data.selection.points:
+            if isinstance(pt, dict):
+                customdata = pt.get("customdata")
+            else:
+                customdata = getattr(pt, "customdata", None)
+            if customdata:
+                # Plotly customdata for a single point is typically an array; unwrap first element.
+                value = customdata
+                try:
+                    if isinstance(customdata, (list, tuple, np.ndarray)) and len(customdata) > 0:
+                        value = customdata[0]
+                except TypeError:
+                    # customdata is not a sized/sequence type; leave it as-is.
+                    pass
+                st.session_state.clicked_pathway_info = value
+                break
 
 
 def display_pathway_tooltip(pathway_info: dict):
