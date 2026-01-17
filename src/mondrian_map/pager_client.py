@@ -34,7 +34,23 @@ class PagerClient:
 
     def __init__(self, config: PagerConfig, session: Optional[requests.Session] = None):
         self.config = config
-        self.session = session or requests.Session()
+
+        if session is None:
+            # Use a fresh requests.Session when no custom session is provided.
+            self.session = requests.Session()
+        else:
+            # Validate that the provided session behaves like a requests.Session.
+            missing_attrs = [
+                name
+                for name in ("get", "post")
+                if not hasattr(session, name) or not callable(getattr(session, name, None))
+            ]
+            if missing_attrs:
+                raise TypeError(
+                    "session must be a requests.Session-like object with callable "
+                    f"methods: {', '.join(missing_attrs)}"
+                )
+            self.session = session
         self._last_request_time = 0.0
 
         self.cache_dir = Path(self.config.cache_dir) if self.config.cache_dir else None
