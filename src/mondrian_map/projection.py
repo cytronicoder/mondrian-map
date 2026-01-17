@@ -83,18 +83,28 @@ def tsne_project(
             "scikit-learn not installed. Install with: pip install scikit-learn"
         )
 
-    if isinstance(seed, TSNEConfig) and config is None:
-        config = seed
-        seed = config.random_state
+    tsne_config = None
+    if isinstance(seed, TSNEConfig):
+        if config is not None:
+            logger.warning(
+                "TSNEConfig provided both via 'seed' and 'config'; "
+                "using 'config' and ignoring the one passed as 'seed'."
+            )
+            tsne_config = config
+        else:
+            tsne_config = seed
+            seed = seed.random_state
+    else:
+        tsne_config = config
 
-    if config is not None:
-        seed = config.random_state
-        perplexity = config.perplexity
-        learning_rate = config.learning_rate
-        n_iter = config.n_iter
-        metric = config.metric
-        n_components = config.n_components
-        init = config.init
+    if tsne_config is not None:
+        seed = tsne_config.random_state
+        perplexity = tsne_config.perplexity
+        learning_rate = tsne_config.learning_rate
+        n_iter = tsne_config.n_iter
+        metric = tsne_config.metric
+        n_components = tsne_config.n_components
+        init = tsne_config.init
 
     logger.info(
         f"Running t-SNE: perplexity={perplexity}, learning_rate={learning_rate}, "
