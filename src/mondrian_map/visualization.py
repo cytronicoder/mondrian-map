@@ -952,24 +952,15 @@ def create_authentic_mondrian_map(
         ]
 
         pathway_row = suffix_to_row.get(block.id)
+        row = pathway_row or {}
         payload = {
-            "name": pathway_row.get("NAME", "") if pathway_row is not None else "",
-            "pathway_id": pathway_row.get("GS_ID", "") if pathway_row is not None else "",
-            "fold_change": float(pathway_row.get("wFC", np.nan))
-            if pathway_row is not None
-            else float("nan"),
-            "pvalue": float(pathway_row.get("pFDR", np.nan))
-            if pathway_row is not None
-            else float("nan"),
-            "ontology": pathway_row.get("Ontology", "")
-            if pathway_row is not None
-            else "",
-            "disease": pathway_row.get("Disease", "")
-            if pathway_row is not None
-            else "",
-            "description": pathway_row.get("Description", "")
-            if pathway_row is not None
-            else "",
+            "name": row.get("NAME", ""),
+            "pathway_id": row.get("GS_ID", ""),
+            "fold_change": float(row.get("wFC", np.nan)),
+            "pvalue": float(row.get("pFDR", np.nan)),
+            "ontology": row.get("Ontology", ""),
+            "disease": row.get("Disease", ""),
+            "description": row.get("Description", ""),
         }
 
         # Convert Colors enum to string for Plotly
