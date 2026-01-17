@@ -159,7 +159,6 @@ class MondrianMapPipeline:
         output_dir = Path(output_dir or self.config.output_dir)
 
         logger.info(f"Starting Mondrian Map pipeline (use_cache={use_cache})")
-        start_time = datetime.now()
 
         # Ensure output directories
         ensure_directory(output_dir)
@@ -583,12 +582,12 @@ class MondrianMapPipeline:
                 self.config.visualization.max_relations_per_node is not None
                 and len(relations_df) > 0
             ):
-                relations = get_relations(
+                relations_df = get_relations(
                     relations_df,
                     threshold=self.config.visualization.max_relations_per_node,
                 )
             else:
-                relations = []
+                pass
 
             # Create figure
             fig = create_authentic_mondrian_map(

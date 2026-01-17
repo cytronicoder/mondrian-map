@@ -6,12 +6,15 @@ computation and pathway entity table construction.
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .pager_client import PagerClient
 
 
 def compute_wfc(

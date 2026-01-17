@@ -1,0 +1,2 @@
+exclude = ["notebooks", "static", "data", "figures", ".venv", "docs"]
+line-length = 88

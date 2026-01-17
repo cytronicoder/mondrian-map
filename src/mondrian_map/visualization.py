@@ -1102,7 +1102,6 @@ def create_authentic_mondrian_map(
     annotations = []
 
     # Style constants to match paper-style spec
-    PORT_OFFSET = 3  # outward offset (in data units, approx pixels at 1000px canvas)
     EDGE_WIDTH = 4  # connecting line width
     # Tile border width scales with maximize flag (full-size vs overview)
     tile_line_width = LINE_WIDTH if maximize else max(3, LINE_WIDTH - 1)

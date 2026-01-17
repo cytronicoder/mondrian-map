@@ -7,12 +7,15 @@ including SentenceTransformers and optionally LLM2Vec.
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .pager_client import PagerClient
 
 # Default model configurations
 DEFAULT_SENTENCE_TRANSFORMER = "all-mpnet-base-v2"

@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 import pickle
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -59,9 +60,6 @@ class SchemaValidationError(Exception):
     """Raised when a dataframe doesn't match the expected schema."""
 
     pass
-
-
-import warnings
 
 
 def validate_entities_schema(

@@ -163,7 +163,7 @@ def cmd_visualize(args):
             df["Description"] = ""
 
     # Load relations if provided
-    relations = []
+    mem_df = None
     if args.relations:
         relations_path = Path(args.relations)
         if relations_path.exists():
@@ -173,13 +173,8 @@ def cmd_visualize(args):
             # Apply max relations per node limit
             threshold = args.max_relations if args.max_relations else 2
             if threshold > 0:
-                relations = get_relations(mem_df, threshold=threshold)
-            else:
-                # No limit
-                relations = [
-                    (row["GS_A_ID"][-4:], row["GS_B_ID"][-4:])
-                    for _, row in mem_df.iterrows()
-                ]
+                mem_df = get_relations(mem_df, threshold=threshold)
+            # else: keep full mem_df as-is
 
     # Create visualization
     logger.info(f"Creating Mondrian Map with {len(df)} pathways")
@@ -191,6 +186,7 @@ def cmd_visualize(args):
             title=title,
             maximize=args.maximize,
             show_pathway_ids=args.show_ids,
+            mem_df=mem_df,
         )
 
         # Save output
