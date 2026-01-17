@@ -43,7 +43,8 @@ class PagerClient:
             missing_attrs = [
                 name
                 for name in ("get", "post")
-                if not hasattr(session, name) or not callable(getattr(session, name, None))
+                if not hasattr(session, name)
+                or not callable(getattr(session, name, None))
             ]
             if missing_attrs:
                 raise TypeError(
@@ -67,7 +68,9 @@ class PagerClient:
         self._last_request_time = time.time()
 
     def _cache_key(self, endpoint: str, params: Dict[str, Any], method: str) -> str:
-        payload = json.dumps({"endpoint": endpoint, "params": params, "method": method}, sort_keys=True)
+        payload = json.dumps(
+            {"endpoint": endpoint, "params": params, "method": method}, sort_keys=True
+        )
         return hashlib.md5(payload.encode("utf-8")).hexdigest()
 
     def _cache_paths(self, cache_key: str) -> Dict[str, Path]:
@@ -78,7 +81,9 @@ class PagerClient:
             "parsed": self.cache_dir / f"{cache_key}.parquet",
         }
 
-    def _log_request(self, endpoint: str, params: Dict[str, Any], cache_key: str) -> None:
+    def _log_request(
+        self, endpoint: str, params: Dict[str, Any], cache_key: str
+    ) -> None:
         if not self._manifest_path:
             return
         record = {
@@ -90,7 +95,9 @@ class PagerClient:
         with self._manifest_path.open("a") as f:
             f.write(json.dumps(record) + "\n")
 
-    def _request(self, endpoint: str, params: Dict[str, Any], method: str = "POST") -> Any:
+    def _request(
+        self, endpoint: str, params: Dict[str, Any], method: str = "POST"
+    ) -> Any:
         cache_key = self._cache_key(endpoint, params, method)
         if self.config.use_cache and self.cache_dir:
             cache_paths = self._cache_paths(cache_key)
@@ -118,12 +125,15 @@ class PagerClient:
                 return data
             except requests.RequestException as exc:
                 last_exception = exc
+                # Linear backoff: retry_delay * (attempt + 1)
+                # For exponential backoff, use: retry_delay * (2 ** attempt)
                 wait = self.config.retry_delay * (attempt + 1)
                 logger.warning(
-                    "PAGER request failed (attempt %s/%s): %s",
+                    "PAGER request failed (attempt %s/%s): %s. Waiting %.1fs before retry.",
                     attempt + 1,
                     self.config.max_retries,
                     exc,
+                    wait,
                 )
                 time.sleep(wait)
 
@@ -133,8 +143,10 @@ class PagerClient:
         if source.lower() != "wikipathways":
             raise ValueError(
                 "PAGER GNPA must use WikiPathways only. "
-                "Set pager.source to 'WikiPathways'."
+                f"Got '{source}', expected 'WikiPathways' (case-insensitive)."
             )
+        # Normalize source to proper case for API
+        source = "WikiPathways"
         params = {
             "genes": "%20".join(gene_symbols),
             "source": source,
