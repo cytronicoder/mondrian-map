@@ -115,7 +115,15 @@ def update_clicked_pathway_info(clicked_data):
             else:
                 customdata = getattr(pt, "customdata", None)
             if customdata:
-                st.session_state.clicked_pathway_info = customdata
+                # Plotly customdata for a single point is typically an array; unwrap first element.
+                value = customdata
+                try:
+                    if isinstance(customdata, (list, tuple, np.ndarray)) and len(customdata) > 0:
+                        value = customdata[0]
+                except TypeError:
+                    # customdata is not a sized/sequence type; leave it as-is.
+                    pass
+                st.session_state.clicked_pathway_info = value
                 break
 
 
