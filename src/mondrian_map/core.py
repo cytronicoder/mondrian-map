@@ -32,7 +32,31 @@ dn_th = abs(1 - (up_th - 1))
 
 
 def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
-    """Check if two rectangles intersect, with optional padding."""
+    """Check if two rectangles intersect, with optional padding.
+    
+    Uses strict intersection semantics: rectangles that only share an edge
+    or corner point (touching but not overlapping) are NOT considered
+    intersecting. Only interior overlap is detected.
+    
+    Parameters
+    ----------
+    r1, r2 : List[Tuple[float, float]]
+        Rectangles as [(x0, y0), (x1, y1)]
+    padding : float
+        Additional spacing to add around rectangles before checking intersection
+        
+    Returns
+    -------
+    bool
+        True if rectangles have interior overlap, False if only touching or separate
+        
+    Examples
+    --------
+    >>> rect_intersects([(0, 0), (10, 10)], [(10, 10), (20, 20)])
+    False  # Edge-touching, no interior overlap
+    >>> rect_intersects([(0, 0), (10, 10)], [(5, 5), (15, 15)])
+    True  # Interior overlap
+    """
     (x0a, y0a), (x1a, y1a) = r1
     (x0b, y0b), (x1b, y1b) = r2
 
@@ -117,41 +141,64 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
     minx, maxx = sorted([x0, x1])
     miny, maxy = sorted([y0, y1])
 
-    def _snap(val: float) -> float:
-        snapped = round(val / grid) * grid
+    def _snap_min(val: float) -> float:
+        """Snap minimum edge down (floor) to grid, maintaining grid alignment"""
+        snapped = math.floor(val / grid) * grid
+        return max(bounds[0], min(bounds[1], snapped))
+    
+    def _snap_max(val: float) -> float:
+        """Snap maximum edge up (ceil) to grid, maintaining grid alignment"""
+        snapped = math.ceil(val / grid) * grid
         return max(bounds[0], min(bounds[1], snapped))
 
-    minx = _snap(minx)
-    maxx = _snap(maxx)
-    miny = _snap(miny)
-    maxy = _snap(maxy)
-
-    minx, maxx = sorted([minx, maxx])
-    miny, maxy = sorted([miny, maxy])
+    # Use floor/ceil strategy: this naturally expands rectangles and maintains
+    # grid alignment even after minimum size enforcement
+    minx = _snap_min(minx)
+    maxx = _snap_max(maxx)
+    miny = _snap_min(miny)
+    maxy = _snap_max(maxy)
     
-    # Ensure minimum width - expand if both corners snapped to same grid point
+    # Ensure minimum width - expand while maintaining grid alignment
     if maxx - minx < min_size:
+        # Calculate how many grid units we need
+        grid_units_needed = math.ceil(min_size / grid)
+        target_width = grid_units_needed * grid
+        
+        # Try to expand symmetrically from center
         center_x = (minx + maxx) / 2
-        minx = max(bounds[0], center_x - min_size / 2)
-        maxx = min(bounds[1], center_x + min_size / 2)
-        # If expanding from center would exceed bounds, expand in available direction
-        if maxx - minx < min_size:
-            if minx == bounds[0]:
-                maxx = min(bounds[1], minx + min_size)
-            else:
-                minx = max(bounds[0], maxx - min_size)
+        new_minx = math.floor(center_x / grid) * grid - (target_width // 2)
+        new_maxx = new_minx + target_width
+        
+        # Adjust if expansion exceeds bounds
+        if new_minx < bounds[0]:
+            new_minx = bounds[0]
+            new_maxx = min(bounds[1], new_minx + target_width)
+        elif new_maxx > bounds[1]:
+            new_maxx = bounds[1]
+            new_minx = max(bounds[0], new_maxx - target_width)
+        
+        minx, maxx = new_minx, new_maxx
     
-    # Ensure minimum height
+    # Ensure minimum height - expand while maintaining grid alignment
     if maxy - miny < min_size:
+        # Calculate how many grid units we need
+        grid_units_needed = math.ceil(min_size / grid)
+        target_height = grid_units_needed * grid
+        
+        # Try to expand symmetrically from center
         center_y = (miny + maxy) / 2
-        miny = max(bounds[0], center_y - min_size / 2)
-        maxy = min(bounds[1], center_y + min_size / 2)
-        # If expanding from center would exceed bounds, expand in available direction
-        if maxy - miny < min_size:
-            if miny == bounds[0]:
-                maxy = min(bounds[1], miny + min_size)
-            else:
-                miny = max(bounds[0], maxy - min_size)
+        new_miny = math.floor(center_y / grid) * grid - (target_height // 2)
+        new_maxy = new_miny + target_height
+        
+        # Adjust if expansion exceeds bounds
+        if new_miny < bounds[0]:
+            new_miny = bounds[0]
+            new_maxy = min(bounds[1], new_miny + target_height)
+        elif new_maxy > bounds[1]:
+            new_maxy = bounds[1]
+            new_miny = max(bounds[0], new_maxy - target_height)
+        
+        miny, maxy = new_miny, new_maxy
 
     return [(minx, miny), (maxx, maxy)]
 
@@ -498,6 +545,8 @@ class GridSystem:
 
         scale = 1.0
         rectangles = []
+        # Initialize areas_scaled before loop to prevent NameError if loop doesn't execute
+        areas_scaled = target_areas
 
         for _ in range(max_scale_iters):
             areas_scaled = [area * scale for area in target_areas]
@@ -505,9 +554,15 @@ class GridSystem:
             for point, target_area in zip(points, areas_scaled):
                 rect, _diff = self.fill_blocks_around_point(point, target_area)
                 if snap_to_grid:
-                    rect = snap_rect_to_grid(rect, grid=20, bounds=(0, 1000))
+                    # Use GridSystem's block size for grid; bounds are (0, width-1) because
+                    # coordinates range from 0 to 1000 inclusive (1001 points total)
+                    rect = snap_rect_to_grid(
+                        rect, grid=self.block_width, bounds=(0, self.width - 1)
+                    )
                 rectangles.append(rect)
 
+            # Note: count_overlaps is O(n²); for very large datasets this could be
+            # optimized using spatial indexing similar to the nudging phase below
             if count_overlaps(rectangles, padding=padding) == 0:
                 return rectangles
 
@@ -577,7 +632,9 @@ class GridSystem:
                     )
                     if snap_to_grid:
                         candidate_rect = snap_rect_to_grid(
-                            candidate_rect, grid=20, bounds=(0, 1000)
+                            candidate_rect,
+                            grid=self.block_width,
+                            bounds=(0, self.width - 1),
                         )
                     if not _check_spatial_overlap(candidate_rect, padding):
                         placed_rect = candidate_rect
