@@ -24,7 +24,9 @@ def test_create_authentic_mondrian_map_has_square_layout():
 
 def test_tile_traces_have_black_borders():
     fig = create_authentic_mondrian_map(_build_df(), dataset_name="Test")
-    tile_traces = [trace for trace in fig.data if getattr(trace, "fill", "") == "toself"]
+    tile_traces = [
+        trace for trace in fig.data if getattr(trace, "fill", "") == "toself"
+    ]
     assert tile_traces
     for trace in tile_traces:
         assert trace.line.color in ["black", "#050103"]
@@ -32,7 +34,9 @@ def test_tile_traces_have_black_borders():
 
 def test_color_mapping_matches_thresholds_and_pFDR_black_rule():
     fig = create_authentic_mondrian_map(_build_df(), dataset_name="Test")
-    tile_traces = [trace for trace in fig.data if getattr(trace, "fill", "") == "toself"]
+    tile_traces = [
+        trace for trace in fig.data if getattr(trace, "fill", "") == "toself"
+    ]
     colors = {}
     for trace in tile_traces:
         pid = trace.customdata[0]["pathway_id"]
@@ -54,8 +58,7 @@ def test_click_targets_have_customdata():
     click_traces = [
         trace
         for trace in fig.data
-        if getattr(trace, "mode", "") == "markers"
-        and trace.marker.opacity == 0
+        if getattr(trace, "mode", "") == "markers" and trace.marker.opacity == 0
     ]
     assert click_traces
     assert click_traces[0].customdata is not None

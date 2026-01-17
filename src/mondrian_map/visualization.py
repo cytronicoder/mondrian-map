@@ -5,8 +5,9 @@ This module contains the visualization functions including the complex
 line generation algorithms and Plotly figure creation.
 """
 
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,8 @@ from .core import (LINE_WIDTH, Block, Colors, Corner, CornerPos, GridSystem,
                    Line, LineDir, Point, adjust, adjust_d, blank_canvas,
                    euclidean_distance_point, get_line_direction)
 from .data_processing import get_relations, prepare_pathway_data
+
+logger = logging.getLogger(__name__)
 
 
 def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
@@ -991,11 +994,33 @@ def create_authentic_mondrian_map(
     seed: int = 0,
 ) -> go.Figure:
     """
-    Create authentic Mondrian map using the exact algorithm from the notebooks
+    Create authentic Mondrian map using the exact algorithm from the notebooks.
+
+    Args:
+        df: Pathway data with wFC, pFDR, x, y columns. Relations can be attached
+            via df.attrs['relations_df']
+        dataset_name: Name of the dataset for file lookups
+        maximize: Whether to maximize tile sizes
+        show_pathway_ids: Whether to display pathway IDs on tiles
+        show_partitions: Whether to show partition lines
+        edge_top_k: Top K edges per pathway to display
+        edge_max_total: Maximum total edges to display
+        seed: Random seed for deterministic layout (seeds numpy.random)
+
+    Returns:
+        Plotly Figure object
+
+    Note:
+        The seed parameter currently only seeds numpy.random.seed(). Additional
+        randomness may occur in the layout algorithm. For fully deterministic
+        results, ensure all random operations use the seeded numpy.random state.
     """
     if len(df) == 0:
         return go.Figure()
 
+    # Hardcoded visual parameters for consistency with paper figures
+    # These values were determined through iterative refinement and should
+    # not be changed without careful consideration of visual impact
     partition_max_lines = 20
     partition_color = "#D0D0D0"
     partition_width = 2
@@ -1005,9 +1030,25 @@ def create_authentic_mondrian_map(
     tile_area_scale = 0.97
     label_min_side = 30.0
 
+    # Seed random number generator for deterministic layout
+    # Note: This seeds numpy.random but may not cover all sources of randomness
     np.random.seed(seed)
 
+    # Extract relations from DataFrame metadata
+    # WARNING: df.attrs is not preserved through all DataFrame operations
+    # (e.g., slicing, copying with copy(), some groupby operations).
+    # If relations_df is None here but you expect relations, the DataFrame
+    # may have been copied or modified before reaching this function.
+    # To avoid this, either:
+    #   1) Pass the DataFrame directly without intermediate copies, or
+    #   2) Re-attach attrs after operations: new_df.attrs = old_df.attrs
     relations_df = df.attrs.get("relations_df")
+    if relations_df is not None and not isinstance(relations_df, pd.DataFrame):
+        logger.warning(
+            f"relations_df in df.attrs is not a DataFrame (got {type(relations_df)}). "
+            "Ignoring relations."
+        )
+        relations_df = None
 
     # Prepare data using the data processing module
     network_dir = Path("data/case_study/pathway_networks")
