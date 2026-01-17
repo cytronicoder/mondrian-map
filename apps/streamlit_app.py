@@ -16,12 +16,14 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Ensure the project root is in sys.path to find the mondrian_map package
-# This solves ModuleNotFoundError when running from the apps/ directory
 import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+SRC_DIR = ROOT_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
