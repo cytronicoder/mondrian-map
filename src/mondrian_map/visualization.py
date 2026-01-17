@@ -816,6 +816,9 @@ def create_authentic_mondrian_map(
     pathway_ids = data["pathway_ids"]
     relations = data["relations"]
     suffix_to_row: Dict[str, pd.Series] = {}
+    # Build suffix-to-row mapping for pathway data lookup
+    # Note: Duplicate GS_IDs (same ID appearing multiple times) will use the last occurrence
+    # This only detects suffix collisions (different GS_IDs with same 4-char suffix)
     for _, row in df.iterrows():
         gs_id = str(row["GS_ID"])
         suffix = gs_id[-4:]
@@ -918,6 +921,12 @@ def create_authentic_mondrian_map(
             lines_to_extend.extend(lines)
 
     # Convert to Plotly traces
+    # IMPORTANT: Trace order determines z-order (rendering layers)
+    # 1. Smart grid lines (bottom layer - drawn first)
+    # 2. Tile rectangles (middle layer - drawn on top of grid)
+    # 3. Invisible markers (for interactivity - same layer as tiles)
+    # 4. Pathway ID text (top layer - drawn last, visible on tiles)
+    # 5. Canvas borders and Manhattan lines (top decorative layer)
     traces = []
 
     # Add smart grid lines (lightest gray, thin lines)
@@ -952,6 +961,8 @@ def create_authentic_mondrian_map(
         ]
 
         pathway_row = suffix_to_row.get(block.id)
+        # Handle missing pathway data (shouldn't occur in normal operation, but provides
+        # graceful degradation if block.id doesn't match any GS_ID suffix in dataframe)
         row = pathway_row if pathway_row is not None else {}
         payload = {
             "name": row.get("NAME", ""),
@@ -996,7 +1007,9 @@ def create_authentic_mondrian_map(
         min_side = min(width, height)
         
         # Scale marker size based on tile dimensions to prevent overflow beyond boundaries
-        # Use 60% of minimum dimension, capped between 6 and 18 pixels
+        # min_side is in data coordinates (0-1000 range), but marker size is in pixels
+        # Formula: 60% of tile's minimum dimension, capped between 6-18 pixels
+        # Examples: 20-unit tile → 12px marker, 200-unit tile → 18px marker (capped)
         marker_size = max(6, min(18, int(min_side * 0.6)))
 
         traces.append(
