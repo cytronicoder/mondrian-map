@@ -5,6 +5,7 @@ This module orchestrates the complete workflow from data loading through
 visualization output.
 """
 
+import copy
 import hashlib
 import json
 import logging
@@ -18,8 +19,16 @@ import numpy as np
 import pandas as pd
 
 from .config import PipelineConfig, get_gbm_case_study_config
-from .io import (ensure_directory, load_embeddings, load_pathway_info,
-                 save_embeddings, save_entities, save_manifest, save_relations)
+from .io import (
+    ensure_directory,
+    load_embeddings,
+    load_glass_inputs,
+    load_pathway_info,
+    save_embeddings,
+    save_entities,
+    save_manifest,
+    save_relations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -115,20 +124,15 @@ class MondrianMapPipeline:
         """Lazily initialize PAGER client."""
         if self._pager_client is None:
             from .pager_client import PagerClient
-            from .pager_client import PagerConfig as PagerClientConfig
 
-            pager_config = PagerClientConfig(
-                cache_dir=(
-                    Path(self.config.cache_dir) / "pager"
-                    if self.config.use_cache
-                    else None
-                ),
-                use_cache=self.config.use_cache,
-                rate_limit=self.config.pager.rate_limit,
-                max_retries=self.config.pager.max_retries,
-                retry_delay=self.config.pager.retry_delay,
+            pager_cfg = copy.deepcopy(self.config.pager)
+            pager_cfg.cache_dir = (
+                str(Path(self.config.cache_dir) / "pager")
+                if self.config.use_cache
+                else None
             )
-            self._pager_client = PagerClient(pager_config)
+            pager_cfg.use_cache = self.config.use_cache
+            self._pager_client = PagerClient(pager_cfg)
 
         return self._pager_client
 
@@ -437,7 +441,8 @@ class MondrianMapPipeline:
         self, prompts: Dict[str, Any]
     ) -> Tuple[np.ndarray, List[str]]:
         """Generate embeddings for pathways."""
-        from .embeddings import EmbeddingConfig, EmbeddingGenerator
+        from .config import EmbeddingConfig
+        from .embeddings import EmbeddingGenerator
 
         # Check for cached embeddings
         embedding_cache_path = (
@@ -564,11 +569,13 @@ class MondrianMapPipeline:
             else:
                 pass
 
+            if len(relations_df) > 0:
+                entities_df.attrs["relations_df"] = relations_df
+
             # Create figure
             fig = create_authentic_mondrian_map(
                 entities_df,
                 dataset_name=f"Mondrian Map - {self.config.case_study.name.upper()}",
-                mem_df=relations_df if len(relations_df) > 0 else None,
                 maximize=self.config.visualization.maximize,
                 show_pathway_ids=self.config.visualization.show_ids,
             )
@@ -666,3 +673,330 @@ def reproduce_case_study(
 
     pipeline = MondrianMapPipeline(config)
     return pipeline.run()
+
+
+def _tile_color(wfc: float, pfdr: float) -> str:
+    if pfdr >= 0.05:
+        return "black"
+    if wfc >= 1.25:
+        return "red"
+    if wfc <= 0.75:
+        return "blue"
+    return "yellow"
+
+
+def _tile_area(
+    wfc: float,
+    scalar: float = 4000.0,
+    min_area: float = 400.0,
+    max_area: float = 20000.0,
+) -> float:
+    safe_wfc = max(float(wfc), 1e-6)
+    area = abs(np.log2(safe_wfc)) * scalar
+    return float(np.clip(area, min_area, max_area))
+
+
+def run_case_study(
+    cfg: PipelineConfig,
+    glass_tp_path: str,
+    glass_r1_path: str,
+    glass_r2_path: str,
+    out_dir: str,
+    force: bool = False,
+) -> None:
+    """Run the full paper-aligned case study pipeline."""
+    from .data_processing import (
+        build_profile_expression,
+        filter_genes_by_expression_threshold,
+        normalize_coords_to_canvas,
+    )
+    from .degs import compute_fold_change, compute_profile_degs
+    from .embeddings import embed_pathways
+    from .pager_client import PagerClient
+    from .pathway_stats import compute_pathway_wfc_table
+    from .projection import project_tsne
+    from .prompts import build_pathway_prompts, summarize_pathway_descriptions
+    from .visualization import create_canvas_grid
+
+    cfg = copy.deepcopy(cfg)
+    out_path = Path(out_dir)
+    if out_path.exists() and any(out_path.iterdir()) and not force:
+        raise FileExistsError(
+            f"Output directory '{out_path}' is not empty. Use force=True to overwrite."
+        )
+    ensure_directory(out_path)
+    ensure_directory(out_path / "figures")
+
+    cache_root = out_path / "cache"
+    ensure_directory(cache_root)
+    cfg.cache_dir = str(cache_root)
+    cfg.pager.cache_dir = str(cache_root / "pager")
+    cfg.embedding.cache_dir = str(cache_root / "embeddings")
+
+    metadata = {
+        "config": cfg.to_dict(),
+        "random_seed": cfg.random_seed,
+        "git_commit": get_git_commit_hash(),
+        "paths": {
+            "tp": glass_tp_path,
+            "r1": glass_r1_path,
+            "r2": glass_r2_path,
+        },
+    }
+
+    inputs = load_glass_inputs(glass_tp_path, glass_r1_path, glass_r2_path)
+    expr_tp, expr_r1, expr_r2 = inputs["TP"], inputs["R1"], inputs["R2"]
+
+    expr_tp, expr_r1, expr_r2, filter_stats = filter_genes_by_expression_threshold(
+        expr_tp,
+        expr_r1,
+        expr_r2,
+        threshold=cfg.thresholds.expression_min_value,
+    )
+    metadata["expression_filtering"] = filter_stats
+
+    profiles = {
+        "aggressive": build_profile_expression(
+            expr_tp, expr_r1, expr_r2, cfg.case_study.aggressive_patient_ids[0]
+        ),
+        "non_aggressive": build_profile_expression(
+            expr_tp, expr_r1, expr_r2, cfg.case_study.nonaggressive_patient_ids[0]
+        ),
+        "baseline": build_profile_expression(
+            expr_tp,
+            expr_r1,
+            expr_r2,
+            patient_id="baseline",
+            baseline_ids=cfg.case_study.baseline_patient_ids,
+        ),
+    }
+
+    pager_client = PagerClient(cfg.pager)
+
+    panel_map: Dict[Tuple[str, str], pd.DataFrame] = {}
+    panel_name_map: Dict[Tuple[str, str], str] = {}
+    profile_order = ["aggressive", "baseline", "non_aggressive"]
+    contrast_order = ["R1_vs_TP", "R2_vs_TP"]
+    profile_labels = {
+        "aggressive": "P−1",
+        "baseline": "P0",
+        "non_aggressive": "P+1",
+    }
+    deg_summary = {}
+
+    for profile_name in profile_order:
+        profile_expr = profiles[profile_name]
+        degs = compute_profile_degs(
+            profile_expr,
+            min_value=cfg.thresholds.expression_min_value,
+            up_threshold=cfg.thresholds.up_regulation_threshold,
+            down_threshold=cfg.thresholds.down_regulation_threshold,
+        )
+        deg_summary[profile_name] = {}
+
+        for contrast in contrast_order:
+            contrast_dir = out_path / "profiles" / profile_name / contrast
+            ensure_directory(contrast_dir)
+            deg_sets = degs[contrast]
+            deg_summary[profile_name][contrast] = {
+                "up": int(len(deg_sets["up"])),
+                "down": int(len(deg_sets["down"])),
+                "all": int(len(deg_sets["all"])),
+            }
+
+            gene_list = sorted(set(map(str, deg_sets["all"])))
+            if not gene_list:
+                empty_df = pd.DataFrame(
+                    columns=["GS_ID", "NAME", "wFC", "pFDR", "x", "y"]
+                )
+                empty_df.to_csv(contrast_dir / "attributes.csv", index=False)
+                pd.DataFrame(
+                    columns=["GS_ID_A", "GS_ID_B", "relation_type", "line_color"]
+                ).to_csv(contrast_dir / "relations.csv", index=False)
+                panel_map[(contrast, profile_name)] = empty_df
+                panel_name_map[(contrast, profile_name)] = (
+                    f"{profile_labels[profile_name]} {contrast.replace('_', ' ')}"
+                )
+                continue
+
+            pag_df = pager_client.run_gnpa(
+                gene_list,
+                source=cfg.pager.source,
+            )
+
+            pvalue_col = "PVALUE" if "PVALUE" in pag_df.columns else "P"
+            if pvalue_col not in pag_df.columns:
+                raise ValueError("GNPA response missing PVALUE/P column")
+            pag_df = pager_client.filter_significant_pags(
+                pag_df,
+                pvalue_col=pvalue_col,
+                cutoff=cfg.thresholds.significance_threshold,
+            )
+            if "pFDR" not in pag_df.columns and "FDR" in pag_df.columns:
+                pag_df["pFDR"] = pag_df["FDR"]
+            if "pFDR" not in pag_df.columns:
+                pag_df["pFDR"] = 1.0
+
+            rp_scores_map = pager_client.extract_rp_scores(pag_df)
+
+            numerator = profile_expr["R1"] if contrast == "R1_vs_TP" else profile_expr["R2"]
+            fc_by_gene = compute_fold_change(
+                numerator,
+                profile_expr["TP"],
+                cfg.thresholds.expression_min_value,
+            )
+            top_up = (
+                fc_by_gene.loc[deg_sets["up"]]
+                .sort_values(ascending=False)
+                .head(10)
+                .index.tolist()
+            )
+            top_down = (
+                fc_by_gene.loc[deg_sets["down"]]
+                .sort_values(ascending=True)
+                .head(10)
+                .index.tolist()
+            )
+            with (contrast_dir / "deg_summary.json").open("w") as f:
+                json.dump(
+                    {
+                        "contrast": contrast,
+                        "counts": deg_summary[profile_name][contrast],
+                        "top_up_genes": top_up,
+                        "top_down_genes": top_down,
+                    },
+                    f,
+                    indent=2,
+                )
+
+            wfc_df = compute_pathway_wfc_table(
+                pag_df,
+                fc_by_gene,
+                rp_scores_map,
+            )
+
+            wfc_df = wfc_df.sort_values(["pFDR", "GS_ID"]).head(
+                cfg.case_study.top_n_pathways
+            )
+
+            rp_gene_order = {
+                pag_id: [
+                    gene
+                    for gene, _ in sorted(scores.items(), key=lambda x: -x[1])
+                ]
+                for pag_id, scores in rp_scores_map.items()
+            }
+
+            summaries = None
+            if cfg.embedding.prompt_type == "pathway_description_summary":
+                summaries = summarize_pathway_descriptions(
+                    wfc_df,
+                    model=getattr(cfg.embedding, "summary_model", "none"),
+                    max_words=300,
+                    cache_path=str(cache_root / "pathway_summaries.json"),
+                )
+
+            prompts = build_pathway_prompts(
+                wfc_df,
+                cfg.embedding.prompt_type,
+                rp_gene_order=rp_gene_order,
+                pathway_summaries=summaries,
+                max_genes=cfg.embedding.max_genes,
+            )
+
+            embeddings = embed_pathways(
+                wfc_df["GS_ID"].tolist(),
+                prompts,
+                cfg.embedding,
+                cache_key=f"{profile_name}_{contrast}_{cfg.embedding.prompt_type}",
+            )
+            np.save(contrast_dir / "embeddings.npy", embeddings)
+
+            coords = project_tsne(
+                embeddings,
+                seed=cfg.random_seed,
+                perplexity=cfg.tsne.perplexity,
+                learning_rate=cfg.tsne.learning_rate,
+                n_iter=cfg.tsne.n_iter,
+            )
+            coords = normalize_coords_to_canvas(coords)
+            coords_df = pd.DataFrame(coords, columns=["x", "y"])
+            coords_df["GS_ID"] = wfc_df["GS_ID"].values
+            coords_df.to_csv(contrast_dir / "coords.csv", index=False)
+
+            attributes = wfc_df[
+                ["GS_ID", "NAME", "wFC", "pFDR", "wFC_gene_coverage", "wFC_genes_used"]
+            ].copy()
+            attributes = attributes.merge(coords_df, on="GS_ID", how="left")
+            attributes["tile_color"] = attributes.apply(
+                lambda row: _tile_color(row["wFC"], row["pFDR"]), axis=1
+            )
+            attributes["tile_area"] = attributes["wFC"].apply(_tile_area)
+            attributes["label_last4"] = attributes["GS_ID"].astype(str).str[-4:]
+            attributes.to_csv(contrast_dir / "attributes.csv", index=False)
+
+            relations = pager_client.get_pag_pag_network(
+                attributes["GS_ID"].tolist(),
+                network_type="m",
+                source=cfg.pager.source,
+            )
+            if not relations.empty:
+                relations = relations.rename(
+                    columns={"GS_ID_A": "GS_ID_A", "GS_ID_B": "GS_ID_B"}
+                )
+                relations = relations[
+                    relations["GS_ID_A"].isin(attributes["GS_ID"])
+                    & relations["GS_ID_B"].isin(attributes["GS_ID"])
+                ]
+                color_map = dict(
+                    zip(attributes["GS_ID"], attributes["tile_color"])
+                )
+                relations["relation_type"] = "m"
+                relations["line_color"] = relations.apply(
+                    lambda row: "red"
+                    if color_map.get(row["GS_ID_A"]) == "red"
+                    and color_map.get(row["GS_ID_B"]) == "red"
+                    else (
+                        "blue"
+                        if color_map.get(row["GS_ID_A"]) == "blue"
+                        and color_map.get(row["GS_ID_B"]) == "blue"
+                        else "yellow"
+                    ),
+                    axis=1,
+                )
+                relations = relations[
+                    ["GS_ID_A", "GS_ID_B", "relation_type", "line_color"]
+                ]
+            else:
+                relations = pd.DataFrame(
+                    columns=["GS_ID_A", "GS_ID_B", "relation_type", "line_color"]
+                )
+            relations.to_csv(contrast_dir / "relations.csv", index=False)
+
+            attributes.attrs["relations_df"] = relations
+            panel_map[(contrast, profile_name)] = attributes
+            panel_name_map[(contrast, profile_name)] = (
+                f"{profile_labels[profile_name]} {contrast.replace('_', ' ')}"
+            )
+
+    metadata["deg_summary"] = deg_summary
+    with (out_path / "run_metadata.json").open("w") as f:
+        json.dump(metadata, f, indent=2)
+
+    panel_dfs = [panel_map[(contrast, profile)] for contrast in contrast_order for profile in profile_order]
+    panel_names = [panel_name_map[(contrast, profile)] for contrast in contrast_order for profile in profile_order]
+
+    fig = create_canvas_grid(
+        panel_dfs,
+        panel_names,
+        canvas_rows=2,
+        canvas_cols=3,
+        show_pathway_ids=True,
+    )
+    fig_path = out_path / "figures" / "mondrian_panel_3x2.html"
+    fig.write_html(str(fig_path))
+
+    try:
+        fig.write_image(str(out_path / "figures" / "mondrian_panel_3x2.png"))
+    except Exception as exc:
+        logger.warning("Could not save PNG panel: %s", exc)

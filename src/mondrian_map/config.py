@@ -33,7 +33,7 @@ class ThresholdConfig:
 class PagerConfig:
     """Configuration for PAGER API calls."""
 
-    source: str = "WikiPathway_2021"
+    source: str = "WikiPathways"
     pag_type: str = "P"
     organism: str = "All"
 
@@ -77,6 +77,7 @@ class EmbeddingConfig:
     device: Optional[str] = None
 
     cache_dir: str = "cache/embeddings"
+    summary_model: str = "none"
 
 
 @dataclass

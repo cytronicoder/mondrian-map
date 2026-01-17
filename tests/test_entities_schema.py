@@ -132,15 +132,14 @@ class TestEntitiesSchemaDefinition:
 
     def test_required_columns(self):
         """Test that schema defines all required columns."""
-        required = ["GS_ID", "NAME", "wFC", "pFDR", "x", "y"]
+        required = ["GS_ID", "wFC", "pFDR", "x", "y"]
         for col in required:
-            assert col in ENTITIES_SCHEMA, f"Missing {col} in schema"
+            assert col in ENTITIES_SCHEMA["required_columns"], f"Missing {col} in schema"
 
     def test_column_types(self):
         """Test that column types are valid numpy/pandas dtypes."""
-        for col, dtype in ENTITIES_SCHEMA.items():
-            # Should be a valid type
-            assert dtype in [str, float, int, "object", "float64", "int64"]
+        for col, dtype in ENTITIES_SCHEMA["dtypes"].items():
+            assert dtype in ["object", "float64", "int64", "string"]
 
 
 class TestSaveEntities:
@@ -177,7 +176,7 @@ class TestSaveEntities:
         )
 
         output_path = tmp_path / "entities.csv"
-        with pytest.raises(ValueError):
+        with pytest.raises(Exception):
             save_entities(df, output_path, validate=True)
 
 

@@ -6,7 +6,7 @@ for the Mondrian Map pipeline.
 """
 
 import logging
-from typing import List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,27 @@ DEFAULT_PSEUDOCOUNT = 1e-6
 
 
 def compute_fold_change(
+    numerator: pd.Series,
+    denominator: pd.Series,
+    min_value: float,
+) -> pd.Series:
+    """
+    Compute fold change with flooring applied to numerator and denominator.
+
+    Args:
+        numerator: Numerator expression series
+        denominator: Denominator expression series
+        min_value: Minimum expression floor applied to both series
+
+    Returns:
+        Series of fold change ratios
+    """
+    numerator = numerator.astype(float).clip(lower=min_value)
+    denominator = denominator.astype(float).clip(lower=min_value)
+    return numerator / denominator
+
+
+def compute_fold_change_from_df(
     expression_df: pd.DataFrame,
     numerator_col: str,
     denominator_col: str,
@@ -28,22 +49,7 @@ def compute_fold_change(
     log_transform: bool = False,
 ) -> pd.Series:
     """
-    Compute fold change between two conditions.
-
-    Args:
-        expression_df: DataFrame with gene expression values (genes as index)
-        numerator_col: Column name for the numerator (e.g., "R1" timepoint)
-        denominator_col: Column name for the denominator (e.g., "TP" baseline)
-        method: Computation method - "ratio" for simple ratio, "log2" for log2 ratio
-        pseudocount: Small value added to avoid division by zero
-        log_transform: Whether to return log2 fold change
-
-    Returns:
-        Series of fold change values indexed by gene
-
-    Example:
-        >>> fc = compute_fold_change(expr_df, "sample_R1", "sample_TP")
-        >>> # Returns Series like: {"BRCA1": 1.5, "TP53": 0.7, ...}
+    Compute fold change between two conditions from a DataFrame.
     """
     if numerator_col not in expression_df.columns:
         raise ValueError(f"Numerator column '{numerator_col}' not found")
@@ -114,7 +120,7 @@ def compute_temporal_fold_change(
             logger.warning(f"Column '{denom_col}' not found, skipping")
             continue
 
-        result[fc_col] = compute_fold_change(
+        result[fc_col] = compute_fold_change_from_df(
             expression_df, num_col, denom_col, pseudocount=pseudocount
         )
 
@@ -182,6 +188,48 @@ def select_degs(
         )
 
     return pd.DataFrame(deg_list)
+
+
+def call_degs_by_fc_thresholds(
+    fc: pd.Series,
+    up_threshold: float = DEFAULT_UP_THRESHOLD,
+    down_threshold: float = DEFAULT_DOWN_THRESHOLD,
+) -> Tuple[pd.Index, pd.Index]:
+    """Return up/down gene indexes based on fold-change thresholds."""
+    up_genes = fc[fc >= up_threshold].index
+    down_genes = fc[fc <= down_threshold].index
+    return up_genes, down_genes
+
+
+def compute_profile_degs(
+    profile_expr: Dict[str, pd.Series],
+    min_value: float,
+    up_threshold: float,
+    down_threshold: float,
+) -> Dict[str, Dict[str, pd.Index]]:
+    """Compute DEGs for R1_vs_TP and R2_vs_TP contrasts for a profile."""
+    fc_r1 = compute_fold_change(profile_expr["R1"], profile_expr["TP"], min_value)
+    fc_r2 = compute_fold_change(profile_expr["R2"], profile_expr["TP"], min_value)
+
+    r1_up, r1_down = call_degs_by_fc_thresholds(
+        fc_r1, up_threshold=up_threshold, down_threshold=down_threshold
+    )
+    r2_up, r2_down = call_degs_by_fc_thresholds(
+        fc_r2, up_threshold=up_threshold, down_threshold=down_threshold
+    )
+
+    return {
+        "R1_vs_TP": {
+            "up": r1_up,
+            "down": r1_down,
+            "all": r1_up.union(r1_down),
+        },
+        "R2_vs_TP": {
+            "up": r2_up,
+            "down": r2_down,
+            "all": r2_up.union(r2_down),
+        },
+    }
 
 
 def select_degs_from_dataframe(

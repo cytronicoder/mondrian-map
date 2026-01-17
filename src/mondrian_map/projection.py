@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TSNE_PERPLEXITY = 30.0
 DEFAULT_TSNE_LEARNING_RATE = 200.0
 DEFAULT_TSNE_N_ITER = 1000
-DEFAULT_TSNE_METRIC = "euclidean"
+DEFAULT_TSNE_METRIC = "cosine"
 DEFAULT_SEED = 42
 
 
@@ -30,7 +30,7 @@ class TSNEConfig:
     n_iter: int = DEFAULT_TSNE_N_ITER
     metric: str = DEFAULT_TSNE_METRIC
     random_state: int = DEFAULT_SEED
-    init: str = "pca"
+    init: str = "random"
     n_components: int = 2
     verbose: int = 0
 
@@ -48,11 +48,13 @@ class UMAPConfig:
 
 def tsne_project(
     embeddings: np.ndarray,
-    seed: int = DEFAULT_SEED,
+    seed: int | TSNEConfig = DEFAULT_SEED,
     perplexity: float = DEFAULT_TSNE_PERPLEXITY,
     learning_rate: float = DEFAULT_TSNE_LEARNING_RATE,
     n_iter: int = DEFAULT_TSNE_N_ITER,
     metric: str = DEFAULT_TSNE_METRIC,
+    n_components: int = 2,
+    init: str = "random",
     config: Optional[TSNEConfig] = None,
 ) -> np.ndarray:
     """
@@ -81,12 +83,18 @@ def tsne_project(
             "scikit-learn not installed. Install with: pip install scikit-learn"
         )
 
+    if isinstance(seed, TSNEConfig) and config is None:
+        config = seed
+        seed = config.random_state
+
     if config is not None:
         seed = config.random_state
         perplexity = config.perplexity
         learning_rate = config.learning_rate
         n_iter = config.n_iter
         metric = config.metric
+        n_components = config.n_components
+        init = config.init
 
     logger.info(
         f"Running t-SNE: perplexity={perplexity}, learning_rate={learning_rate}, "
@@ -94,6 +102,9 @@ def tsne_project(
     )
 
     n_samples = embeddings.shape[0]
+    if np.allclose(embeddings, embeddings[0]):
+        logger.warning("Embeddings are identical; returning zero coordinates.")
+        return np.zeros((n_samples, 2))
     if perplexity >= n_samples:
         old_perplexity = perplexity
         perplexity = max(1, n_samples - 1)
@@ -102,20 +113,42 @@ def tsne_project(
             f"(n_samples={n_samples})"
         )
 
-    tsne = TSNE(
-        n_components=2,
+    tsne_kwargs = dict(
+        n_components=n_components,
         perplexity=perplexity,
         learning_rate=learning_rate,
-        n_iter=n_iter,
         metric=metric,
         random_state=seed,
-        init="pca" if n_samples > 3 else "random",
+        init=init if n_samples > 3 else "random",
     )
+    if "max_iter" in TSNE.__init__.__code__.co_varnames:
+        tsne_kwargs["max_iter"] = n_iter
+    else:
+        tsne_kwargs["n_iter"] = n_iter
+
+    tsne = TSNE(**tsne_kwargs)
 
     coords = tsne.fit_transform(embeddings)
 
     logger.info(f"t-SNE projection complete: {coords.shape}")
     return coords
+
+
+def project_tsne(
+    X: np.ndarray,
+    seed: int,
+    perplexity: float,
+    learning_rate: float,
+    n_iter: int,
+) -> np.ndarray:
+    """Project embeddings with t-SNE (paper-locked wrapper)."""
+    return tsne_project(
+        X,
+        seed=seed,
+        perplexity=perplexity,
+        learning_rate=learning_rate,
+        n_iter=n_iter,
+    )
 
 
 def umap_project(
@@ -298,10 +331,10 @@ def build_coordinates_table(
 
 def verify_determinism(
     embeddings: np.ndarray,
-    seed: int,
+    seed: int | TSNEConfig,
     method: str = "tsne",
     tolerance: float = 1e-6,
-) -> bool:
+) -> tuple[bool, float]:
     """
     Verify that projection is deterministic with given seed.
 
@@ -327,7 +360,7 @@ def verify_determinism(
             f"Projection NOT deterministic (max_diff={max_diff:.2e} > {tolerance})"
         )
 
-    return is_deterministic
+    return bool(is_deterministic), float(max_diff)
 
 
 def compute_projection_quality(

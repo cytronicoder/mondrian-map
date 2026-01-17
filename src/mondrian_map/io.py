@@ -164,7 +164,7 @@ def validate_dataframe(
 
 def load_expression_matrix(
     path: Union[str, Path],
-    index_col: str = "Gene_symbol",
+    index_col: str = "gene",
     sep: str = "\t",
     fillna: float = 0.0,
     min_value: Optional[float] = None,
@@ -173,7 +173,7 @@ def load_expression_matrix(
     Load a gene expression matrix from file.
 
     Args:
-        path: Path to the expression matrix file (TSV or CSV)
+        path: Path to the expression matrix file (TSV, CSV, or Parquet)
         index_col: Column to use as index (gene identifiers)
         sep: Delimiter (default: tab for TSV)
         fillna: Value to fill NaN with
@@ -192,14 +192,20 @@ def load_expression_matrix(
 
     logger.info(f"Loading expression matrix from {path}")
 
-    # Auto-detect separator
-    if path.suffix == ".csv":
-        sep = ","
+    if path.suffix == ".parquet":
+        df = pd.read_parquet(path)
+    else:
+        # Auto-detect separator
+        if path.suffix == ".csv":
+            sep = ","
 
-    df = pd.read_csv(path, sep=sep)
+        df = pd.read_csv(path, sep=sep)
 
     if index_col not in df.columns:
-        df = pd.read_csv(path, sep=sep, index_col=0)
+        if path.suffix == ".parquet":
+            df = df.set_index(df.columns[0])
+        else:
+            df = pd.read_csv(path, sep=sep, index_col=0)
         logger.warning(f"Column '{index_col}' not found, using first column as index")
     else:
         df = df.set_index(index_col)
@@ -218,6 +224,19 @@ def load_expression_matrix(
         f"Loaded expression matrix: {df.shape[0]} genes × {df.shape[1]} samples"
     )
     return df
+
+
+def load_glass_inputs(
+    tp_path: Union[str, Path],
+    r1_path: Union[str, Path],
+    r2_path: Union[str, Path],
+) -> Dict[str, pd.DataFrame]:
+    """Load GLASS inputs for TP, R1, and R2 expression matrices."""
+    return {
+        "TP": load_expression_matrix(tp_path),
+        "R1": load_expression_matrix(r1_path),
+        "R2": load_expression_matrix(r2_path),
+    }
 
 
 def load_deg_table(
