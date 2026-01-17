@@ -195,7 +195,7 @@ Add to `.vscode/tasks.json`:
 
 ```json
 {
-    "version": "2.0.0",
+    "version": "1.2.1",
     "tasks": [
         {
             "label": "Run Mondrian Map",
