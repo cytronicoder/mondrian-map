@@ -334,7 +334,90 @@ class GridSystem:
         nudge_step: float = 10.0,
         nudge_radius: float = 120.0,
     ) -> List[List[Tuple[float, float]]]:
-        """Plot points and fill blocks based on target areas"""
+        """
+        Generate rectangular blocks around input points to approximate the given target
+        areas, optionally resolving overlaps via global scaling and local nudging.
+
+        The algorithm has two main modes controlled by ``avoid_overlap``:
+
+        * If ``avoid_overlap`` is False (default behavior):
+            Each point is handled independently by calling
+            :meth:`fill_blocks_around_point` with its corresponding target area.
+            No attempt is made to detect or resolve overlaps between the resulting
+            rectangles. This is the fastest mode and is appropriate when overlaps
+            are acceptable or unlikely.
+
+        * If ``avoid_overlap`` is True:
+            A two-stage process is used to reduce and resolve overlaps:
+
+            1. **Global downscaling phase**:
+               The target areas are repeatedly scaled down (up to
+               ``max_scale_iters`` iterations, not going below ``min_scale`` of the
+               original areas). On each iteration, rectangles are regenerated and
+               checked for pairwise intersections (with the given ``padding``).
+               Scaling is reduced until either no overlaps remain or the minimum
+               scale factor is reached.
+
+            2. **Local nudging phase** (if ``nudge`` is True):
+               Rectangles are processed in descending order of (scaled) target area.
+               For any rectangle that still overlaps an already-accepted rectangle,
+               a sequence of candidate offsets is tried around the original point.
+               The search starts at offset (0, 0) and proceeds in discrete steps of
+               ``nudge_step`` out to a maximum radius of ``nudge_radius``, trying
+               axis-aligned and diagonal displacements. For each candidate offset a
+               new rectangle is generated using :meth:`fill_blocks_around_point`. If
+               ``snap_to_grid`` is True, this candidate rectangle is snapped to a
+               regular grid before the overlap check. The first candidate that does
+               not intersect any accepted rectangle (respecting ``padding``) is
+               chosen.
+
+        Parameters
+        ----------
+        points:
+            List of point coordinates ``(x, y)`` that serve as seeds around which
+            rectangles will be generated.
+        target_areas:
+            List of desired areas for the rectangles corresponding to each point.
+            Must be the same length as ``points``.
+        avoid_overlap:
+            If True, enable the overlap-avoidance workflow (global scaling followed
+            by optional local nudging). If False, rectangles are generated
+            independently for each point without overlap checks.
+        padding:
+            Extra spacing to enforce between rectangles when checking for
+            intersections. Larger values effectively increase the minimum distance
+            between neighboring rectangles during overlap detection.
+        max_scale_iters:
+            Maximum number of iterations allowed in the global downscaling phase
+            when ``avoid_overlap`` is True.
+        min_scale:
+            Lower bound on the global area scale factor. The algorithm will not
+            shrink target areas below ``min_scale * original_area`` during the
+            scaling phase.
+        snap_to_grid:
+            If True, snap each candidate rectangle in the nudging phase to a fixed
+            grid before performing overlap checks. This helps produce cleaner,
+            grid-aligned layouts at the cost of reduced positional freedom.
+        nudge:
+            If True, perform the local nudging phase after global downscaling to
+            further reduce or eliminate remaining overlaps. If False, the function
+            returns the rectangles obtained after the scaling phase.
+        nudge_step:
+            Step size (in the same units as the point coordinates) between
+            successive nudge radii when searching for non-overlapping positions.
+        nudge_radius:
+            Maximum distance from the original point that the nudging phase will
+            explore when trying to reposition a rectangle.
+
+        Returns
+        -------
+        List[List[Tuple[float, float]]]
+            A list of rectangles. Each rectangle is represented as a list of
+            ``(x, y)`` vertex coordinates describing the polygon returned by
+            :meth:`fill_blocks_around_point`, possibly scaled, snapped, and/or
+            nudged according to the parameters above. The rectangles are returned
+            in the same order as the input ``points``.
+        """
         if not avoid_overlap:
             rectangles = []
             area_diff = 0
