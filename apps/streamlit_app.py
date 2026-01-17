@@ -18,7 +18,6 @@ import streamlit as st
 # Add the src directory to the path to import our modules
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from mondrian_map.core import Colors
 from mondrian_map.data_processing import (get_colors,
                                           get_mondrian_color_description,
                                           load_dataset, load_pathway_info,
@@ -85,7 +84,7 @@ def render_square_plotly(
     )
     clicked_data = st.plotly_chart(
         fig,
-        width='content',
+        width="content",
         key=key,
         on_select=on_select,
         config=config,
@@ -196,7 +195,7 @@ def display_pathway_genes(pathway_id: str, deg_data: dict, fc_threshold: float =
     # Display the gene table
     st.dataframe(
         gene_display[["gene_symbol", "fold_change", "pvalue", "Regulation"]],
-        width='stretch',
+        width="stretch",
         height=300,
     )
 
@@ -389,7 +388,7 @@ def display_dataset_crosstalks(df: pd.DataFrame, dataset_name: str, network_dir:
 
         # Display the crosstalks table
         st.markdown(f"#### 🔗 Pathway Interactions ({len(display_df)} shown)")
-        st.dataframe(display_df, width='stretch', height=400)
+        st.dataframe(display_df, width="stretch", height=400)
 
         # Top interactions summary
         if len(display_df) > 0:
@@ -484,7 +483,7 @@ def create_detailed_popup(df: pd.DataFrame, dataset_name: str):
         df_with_abs_fc = df.copy()
         df_with_abs_fc["abs_wFC"] = df_with_abs_fc["wFC"].abs()
         top_pathways = df_with_abs_fc.nlargest(5, "abs_wFC")[["NAME", "wFC", "pFDR"]]
-        st.dataframe(top_pathways, width='stretch')
+        st.dataframe(top_pathways, width="stretch")
 
 
 # Helper function for input validation
@@ -653,7 +652,7 @@ def main():
             else:
                 clicked_data = st.plotly_chart(
                     canvas_fig,
-                    width='stretch',
+                    width="stretch",
                     key="canvas_chart",
                     on_select="rerun",
                     config=PLOT_CONFIG,
@@ -713,7 +712,7 @@ def main():
                 size_px = 850 if maximize_maps else 720
                 clicked_data = render_square_plotly(
                     full_fig,
-                    key=f"full_map_0",
+                    key="full_map_0",
                     size_px=size_px,
                     on_select="rerun",
                     config=PLOT_CONFIG,
@@ -857,9 +856,7 @@ def main():
             with col1:
                 st.subheader("🎨 Color Legend")
                 legend_fig = create_color_legend()
-                st.plotly_chart(
-                    legend_fig, width='stretch', config=PLOT_CONFIG
-                )
+                st.plotly_chart(legend_fig, width="stretch", config=PLOT_CONFIG)
 
             with col2:
                 st.subheader("ℹ️ Authentic Algorithm")
@@ -931,7 +928,7 @@ def main():
                                 "Disease",
                             ]
                         ].round(4),
-                        width='stretch',
+                        width="stretch",
                         height=400,
                         on_select="rerun",
                         selection_mode="single-row",
@@ -964,7 +961,7 @@ def main():
                             "Disease",
                         ]
                     ].round(4),
-                    width='stretch',
+                    width="stretch",
                     height=400,
                     on_select="rerun",
                     selection_mode="single-row",

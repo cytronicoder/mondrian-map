@@ -437,11 +437,8 @@ def create_partition_line_shapes(
 def _normalize_color_name(color_value: str) -> str:
     """Normalize color strings/hex values to red/blue/yellow/black labels."""
     normalized = str(color_value).lower()
+    # Map hex values to color names
     color_map = {
-        "red": "red",
-        "blue": "blue",
-        "yellow": "yellow",
-        "black": "black",
         Colors.RED.value.lower(): "red",
         Colors.BLUE.value.lower(): "blue",
         Colors.YELLOW.value.lower(): "yellow",
@@ -489,22 +486,17 @@ def _block_ports(
     if abs(dx) >= abs(dy):
         primary = "right" if dx >= 0 else "left"
         secondary = ["top", "bottom"]
+        # Determine the opposite horizontal direction
+        tertiary = "left" if primary == "right" else "right"
+        ordered_keys = [primary] + secondary + [tertiary]
     else:
         primary = "bottom" if dy >= 0 else "top"
         secondary = ["left", "right"]
+        # Determine the opposite vertical direction
+        tertiary = "top" if primary == "bottom" else "bottom"
+        ordered_keys = [primary] + secondary + [tertiary]
 
-    ordered = (
-        [primary]
-        + secondary
-        + [key for key in ["left", "right", "top", "bottom"] if key != primary]
-    )
-    seen = set()
-    result = []
-    for key in ordered:
-        if key not in seen:
-            seen.add(key)
-            result.append(ports[key])
-    return result
+    return [ports[key] for key in ordered_keys]
 
 
 def _segment_intersects_rect(
@@ -542,11 +534,19 @@ def _path_hits_obstacles(
     ignore_rects: List[Dict[str, float]],
 ) -> bool:
     """Return True if any segment intersects obstacle interiors (excluding endpoints)."""
+    # Convert ignore_rects to set of tuples for proper comparison
+    ignore_set = {
+        (rect["left"], rect["right"], rect["top"], rect["bottom"])
+        for rect in ignore_rects
+    }
+
     for i in range(len(path) - 1):
         a = path[i]
         b = path[i + 1]
         for rect in obstacles:
-            if rect in ignore_rects:
+            # Check if this rect should be ignored using content comparison
+            rect_tuple = (rect["left"], rect["right"], rect["top"], rect["bottom"])
+            if rect_tuple in ignore_set:
                 continue
             if _segment_intersects_rect(a, b, rect):
                 return True
@@ -556,6 +556,7 @@ def _path_hits_obstacles(
 def _simplify_path(
     path: List[Tuple[float, float]], epsilon: float = 1e-6
 ) -> List[Tuple[float, float]]:
+    """Remove duplicate consecutive points within epsilon threshold."""
     simplified = []
     for point in path:
         if not simplified or (
@@ -563,14 +564,7 @@ def _simplify_path(
             or abs(point[1] - simplified[-1][1]) > epsilon
         ):
             simplified.append(point)
-    cleaned = [simplified[0]] if simplified else []
-    for point in simplified[1:]:
-        if (
-            abs(point[0] - cleaned[-1][0]) > epsilon
-            or abs(point[1] - cleaned[-1][1]) > epsilon
-        ):
-            cleaned.append(point)
-    return cleaned
+    return simplified
 
 
 def route_manhattan(
@@ -953,7 +947,7 @@ def create_authentic_mondrian_map(
     edge_max_total: int = 30,
     show_legend: bool = True,
     tile_area_scale: float = 0.97,
-    label_min_side: float = 45.0,
+    label_min_side: float = 30.0,  # Default matches original threshold for backward compatibility
 ) -> go.Figure:
     """
     Create authentic Mondrian map using the exact algorithm from the notebooks
@@ -1031,7 +1025,9 @@ def create_authentic_mondrian_map(
             gs_b = str(row["GS_B_ID"])[-4:]
             key = tuple(sorted((gs_a, gs_b)))
             if "PVALUE" in row:
-                score = -float(row["PVALUE"])
+                # Use -log(p) so smaller p-values (more significant) get higher scores
+                pval = float(row["PVALUE"])
+                score = -np.log(max(pval, 1e-300))  # Avoid log(0)
             elif "SIMILARITY" in row:
                 score = float(row["SIMILARITY"])
             else:
@@ -1073,14 +1069,13 @@ def create_authentic_mondrian_map(
             b.color.value if hasattr(b.color, "value") else str(b.color)
         )
 
-        s_significant = s_color != "black"
-        b_significant = b_color != "black"
-
+        # Determine edge color based on endpoint significance and colors
         if s_color == "red" and b_color == "red":
             edge_color = Colors.RED.value
         elif s_color == "blue" and b_color == "blue":
             edge_color = Colors.BLUE.value
-        elif s_significant and b_significant:
+        elif s_color != "black" and b_color != "black":
+            # Both significant but different types
             edge_color = Colors.YELLOW.value
         elif show_insignificant_edges:
             edge_color = no_relations_color
@@ -1110,7 +1105,7 @@ def create_authentic_mondrian_map(
     PORT_OFFSET = 3  # outward offset (in data units, approx pixels at 1000px canvas)
     EDGE_WIDTH = 4  # connecting line width
     # Tile border width scales with maximize flag (full-size vs overview)
-    tile_line_width = LINE_WIDTH if maximize else max(3, LINE_WIDTH - 1) 
+    tile_line_width = LINE_WIDTH if maximize else max(3, LINE_WIDTH - 1)
 
     # Add blocks as filled rectangles
     for block in all_blocks:
@@ -1184,14 +1179,13 @@ def create_authentic_mondrian_map(
         marker_size = max(6, min(18, int(min_side * 0.6)))
 
         # Attach click metadata via invisible markers for Streamlit selection.
-        # Click target markers - keep size within [6,18] bounds
-        click_marker_size = min(18, marker_size + 6)
+        # Marker size already bounded [6,18] from calculation above
         click_traces.append(
             go.Scatter(
                 x=[cx],
                 y=[cy],
                 mode="markers",
-                marker=dict(size=click_marker_size, opacity=0),
+                marker=dict(size=marker_size, opacity=0),
                 customdata=[payload],
                 hoverinfo="skip",
                 showlegend=False,
@@ -1203,7 +1197,8 @@ def create_authentic_mondrian_map(
             text_color = (
                 "white" if normalized_color in ["red", "blue", "black"] else "black"
             )
-            label_y = block.top_left_p[1] + min(14, height * 0.25)
+            # Use tile center to avoid clipping near edges
+            label_y = cy
             font_size = max(8, min(12, int(min_side / 6)))
             annotations.append(
                 dict(
@@ -1372,24 +1367,24 @@ def create_canvas_grid(
 
         # Add shapes (partition lines and borders) to subplot
         # Transfer shapes to the correct subplot by adjusting xref/yref
-        if hasattr(mondrian_fig, 'layout') and hasattr(mondrian_fig.layout, 'shapes'):
+        if hasattr(mondrian_fig, "layout") and hasattr(mondrian_fig.layout, "shapes"):
             for shape in mondrian_fig.layout.shapes:
                 # Convert Plotly shape object to dictionary
-                if hasattr(shape, 'to_plotly_json'):
+                if hasattr(shape, "to_plotly_json"):
                     shape_copy = shape.to_plotly_json()
                 else:
                     shape_copy = shape
-                
+
                 # Set the shape to apply to the specific subplot
                 if canvas_rows == 1 and canvas_cols == 1:
                     # Single subplot, use default x/y refs
-                    shape_copy['xref'] = 'x'
-                    shape_copy['yref'] = 'y'
+                    shape_copy["xref"] = "x"
+                    shape_copy["yref"] = "y"
                 else:
                     # Multiple subplots, need to specify which axis
-                    axis_suffix = '' if idx == 0 else str(idx + 1)
-                    shape_copy['xref'] = f'x{axis_suffix}'
-                    shape_copy['yref'] = f'y{axis_suffix}'
+                    axis_suffix = "" if idx == 0 else str(idx + 1)
+                    shape_copy["xref"] = f"x{axis_suffix}"
+                    shape_copy["yref"] = f"y{axis_suffix}"
                 all_shapes.append(shape_copy)
 
         # Configure subplot axes
