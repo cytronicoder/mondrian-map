@@ -420,12 +420,10 @@ class GridSystem:
         """
         if not avoid_overlap:
             rectangles = []
-            area_diff = 0
 
             for point, target_area in zip(points, target_areas):
-                rect, diff = self.fill_blocks_around_point(point, target_area)
+                rect, _diff = self.fill_blocks_around_point(point, target_area)
                 rectangles.append(rect)
-                area_diff += diff
 
             return rectangles
 
