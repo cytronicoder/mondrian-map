@@ -815,7 +815,21 @@ def create_authentic_mondrian_map(
     colors = data["colors"]
     pathway_ids = data["pathway_ids"]
     relations = data["relations"]
-    suffix_to_row = {str(row["GS_ID"])[-4:]: row for _, row in df.iterrows()}
+    suffix_to_row: Dict[str, pd.Series] = {}
+    for _, row in df.iterrows():
+        gs_id = str(row["GS_ID"])
+        suffix = gs_id[-4:]
+        existing_row = suffix_to_row.get(suffix)
+        if existing_row is not None:
+            existing_gs_id = str(existing_row["GS_ID"])
+            if existing_gs_id != gs_id:
+                raise ValueError(
+                    f"Detected GS_ID suffix collision for suffix '{suffix}': "
+                    f"{existing_gs_id} and {gs_id}. "
+                    "GS_ID suffixes must be unique; please use full GS_IDs or "
+                    "disambiguate the identifiers."
+                )
+        suffix_to_row[suffix] = row
 
     # Initialize canvas
     blank_canvas()
