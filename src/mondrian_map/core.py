@@ -30,6 +30,63 @@ up_th = 1.25
 dn_th = abs(1 - (up_th - 1))
 
 
+def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
+    """Check if two rectangles intersect, with optional padding."""
+    (x0a, y0a), (x1a, y1a) = r1
+    (x0b, y0b), (x1b, y1b) = r2
+
+    minx1, maxx1 = sorted([x0a, x1a])
+    miny1, maxy1 = sorted([y0a, y1a])
+    minx2, maxx2 = sorted([x0b, x1b])
+    miny2, maxy2 = sorted([y0b, y1b])
+
+    minx1 -= padding
+    maxx1 += padding
+    miny1 -= padding
+    maxy1 += padding
+    minx2 -= padding
+    maxx2 += padding
+    miny2 -= padding
+    maxy2 += padding
+
+    if maxx1 <= minx2 or maxx2 <= minx1:
+        return False
+    if maxy1 <= miny2 or maxy2 <= miny1:
+        return False
+    return True
+
+
+def count_overlaps(rects: list, padding: float = 0.0) -> int:
+    """Count pairwise rectangle overlaps."""
+    overlaps = 0
+    for i in range(len(rects)):
+        for j in range(i + 1, len(rects)):
+            if rect_intersects(rects[i], rects[j], padding=padding):
+                overlaps += 1
+    return overlaps
+
+
+def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000)):
+    """Snap a rectangle to the nearest grid within bounds."""
+    (x0, y0), (x1, y1) = rect
+    minx, maxx = sorted([x0, x1])
+    miny, maxy = sorted([y0, y1])
+
+    def _snap(val: float) -> float:
+        snapped = round(val / grid) * grid
+        return max(bounds[0], min(bounds[1], snapped))
+
+    minx = _snap(minx)
+    maxx = _snap(maxx)
+    miny = _snap(miny)
+    maxy = _snap(maxy)
+
+    minx, maxx = sorted([minx, maxx])
+    miny, maxy = sorted([miny, maxy])
+
+    return [(minx, miny), (maxx, maxy)]
+
+
 class Colors(str, Enum):
     """Authentic Mondrian color palette"""
 
@@ -265,18 +322,107 @@ class GridSystem:
             return sqrt_nob, int(math.ceil(nob / sqrt_nob))
 
     def plot_points_fill_blocks(
-        self, points: List[Tuple[float, float]], target_areas: List[float]
+        self,
+        points: List[Tuple[float, float]],
+        target_areas: List[float],
+        avoid_overlap: bool = False,
+        padding: float = LINE_WIDTH,
+        max_scale_iters: int = 25,
+        min_scale: float = 0.20,
+        snap_to_grid: bool = True,
+        nudge: bool = True,
+        nudge_step: float = 10.0,
+        nudge_radius: float = 120.0,
     ) -> List[List[Tuple[float, float]]]:
         """Plot points and fill blocks based on target areas"""
+        if not avoid_overlap:
+            rectangles = []
+            area_diff = 0
+
+            for point, target_area in zip(points, target_areas):
+                rect, diff = self.fill_blocks_around_point(point, target_area)
+                rectangles.append(rect)
+                area_diff += diff
+
+            return rectangles
+
+        scale = 1.0
         rectangles = []
-        area_diff = 0
+        areas_scaled = [area * scale for area in target_areas]
 
-        for point, target_area in zip(points, target_areas):
-            rect, diff = self.fill_blocks_around_point(point, target_area)
-            rectangles.append(rect)
-            area_diff += diff
+        for _ in range(max_scale_iters):
+            areas_scaled = [area * scale for area in target_areas]
+            rectangles = []
+            for point, target_area in zip(points, areas_scaled):
+                rect, _diff = self.fill_blocks_around_point(point, target_area)
+                if snap_to_grid:
+                    rect = snap_rect_to_grid(rect, grid=20, bounds=(0, 1000))
+                rectangles.append(rect)
 
-        return rectangles
+            if count_overlaps(rectangles, padding=padding) == 0:
+                return rectangles
+
+            scale *= 0.9
+            if scale < min_scale:
+                break
+
+        if not nudge:
+            return rectangles
+
+        ordered_indices = sorted(
+            range(len(areas_scaled)), key=lambda i: areas_scaled[i], reverse=True
+        )
+        accepted_rects = []
+        final_rects = [None] * len(rectangles)
+
+        def _offset_candidates():
+            yield (0.0, 0.0)
+            r = nudge_step
+            while r <= nudge_radius:
+                offsets = [
+                    (r, 0),
+                    (-r, 0),
+                    (0, r),
+                    (0, -r),
+                    (r, r),
+                    (r, -r),
+                    (-r, r),
+                    (-r, -r),
+                ]
+                for offset in offsets:
+                    yield offset
+                r += nudge_step
+
+        for idx in ordered_indices:
+            base_point = points[idx]
+            base_area = areas_scaled[idx]
+            base_rect = rectangles[idx]
+            placed_rect = base_rect
+
+            if any(
+                rect_intersects(base_rect, accepted, padding=padding)
+                for accepted in accepted_rects
+            ):
+                for dx, dy in _offset_candidates():
+                    candidate_point = (base_point[0] + dx, base_point[1] + dy)
+                    candidate_rect, _diff = self.fill_blocks_around_point(
+                        candidate_point, base_area
+                    )
+                    if snap_to_grid:
+                        candidate_rect = snap_rect_to_grid(
+                            candidate_rect, grid=20, bounds=(0, 1000)
+                        )
+                    if not any(
+                        rect_intersects(candidate_rect, accepted, padding=padding)
+                        for accepted in accepted_rects
+                    ):
+                        placed_rect = candidate_rect
+                        break
+
+            accepted_rects.append(placed_rect)
+            final_rects[idx] = placed_rect
+
+        return final_rects
 
 
 def blank_canvas():
