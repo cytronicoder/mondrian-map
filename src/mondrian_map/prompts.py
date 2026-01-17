@@ -48,7 +48,8 @@ def build_pathway_prompts(
                 membership = str(row.get("MEMBERSHIP", "")).split(",")
                 genes = [g.strip() for g in membership if g.strip()]
             entries = [
-                f"{gene} ({gene_descriptions.get(gene, '')})" for gene in genes[:max_genes]
+                f"{gene} ({gene_descriptions.get(gene, '')})"
+                for gene in genes[:max_genes]
             ]
             prompt = ", ".join(entries)
         elif prompt_type == "pathway_name":

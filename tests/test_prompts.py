@@ -1,7 +1,8 @@
-import pytest
 import pandas as pd
+import pytest
 
-from mondrian_map.prompts import build_pathway_prompts, summarize_pathway_descriptions
+from mondrian_map.prompts import (build_pathway_prompts,
+                                  summarize_pathway_descriptions)
 
 
 def test_build_pathway_prompts_gene_symbols_truncates_to_max_genes_and_is_deterministic():
@@ -21,7 +22,9 @@ def test_build_pathway_prompts_gene_symbols_truncates_to_max_genes_and_is_determ
     assert prompts == ["G4 G3"]
 
 
-def test_summarize_pathway_descriptions_requires_precomputed_or_explicit_fallback(tmp_path):
+def test_summarize_pathway_descriptions_requires_precomputed_or_explicit_fallback(
+    tmp_path,
+):
     pag_df = pd.DataFrame(
         {
             "GS_ID": ["P1"],

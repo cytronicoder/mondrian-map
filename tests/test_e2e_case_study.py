@@ -4,7 +4,6 @@ import pandas as pd
 from mondrian_map.config import PipelineConfig
 from mondrian_map.embeddings import EmbeddingGenerator
 from mondrian_map.pipeline import run_case_study
-
 from tests.utils_synth import MockPagerClient, make_synthetic_glass_matrices
 
 
@@ -22,7 +21,9 @@ def test_run_case_study_synthetic_end_to_end(tmp_path, monkeypatch):
 
     monkeypatch.setattr(EmbeddingGenerator, "embed_texts", fake_embed_texts)
     monkeypatch.setattr("mondrian_map.pager_client.PagerClient", MockPagerClient)
-    monkeypatch.setattr("mondrian_map.projection.project_tsne", lambda X, **kwargs: X[:, :2])
+    monkeypatch.setattr(
+        "mondrian_map.projection.project_tsne", lambda X, **kwargs: X[:, :2]
+    )
 
     cfg = PipelineConfig()
     cfg.embedding.prompt_type = "pathway_name"

@@ -94,6 +94,7 @@ def compute_pathway_wfc_table(
     wfc_df = pd.DataFrame(records)
     return pd.merge(pag_df, wfc_df, on=pag_id_col, how="left")
 
+
 def compute_wfc(
     gene_fc: pd.Series,
     rp_scores: pd.Series,

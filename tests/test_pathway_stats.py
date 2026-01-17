@@ -1,9 +1,7 @@
 import pandas as pd
 
-from mondrian_map.pathway_stats import (
-    compute_pathway_wfc_table,
-    compute_weighted_fold_change,
-)
+from mondrian_map.pathway_stats import (compute_pathway_wfc_table,
+                                        compute_weighted_fold_change)
 
 
 def test_compute_weighted_fold_change_known_example():
