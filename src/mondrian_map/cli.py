@@ -320,9 +320,9 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
             PackageNotFoundError = Exception
 
     try:
-        pkg_version = _pkg_version("mondrian-map") if _pkg_version else "1.2.0"
+        pkg_version = _pkg_version("mondrian-map") if _pkg_version else "1.2.1"
     except PackageNotFoundError:
-        pkg_version = "1.2.0"
+        pkg_version = "1.2.1"
 
     parser.add_argument(
         "--version",
