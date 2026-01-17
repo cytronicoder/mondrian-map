@@ -93,3 +93,6 @@ secrets.toml
 # Package build
 *.tar.gz
 *.whl
+
+# Outputs
+outputs/
