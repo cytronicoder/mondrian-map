@@ -27,13 +27,14 @@ from .io import (load_deg_table, load_embeddings, load_expression_matrix,
 from .pathway_stats import (build_entities_table, compute_pathway_wfc,
                             compute_wfc)
 from .pipeline import (MondrianMapPipeline, PipelineOutputs,
-                       reproduce_case_study, run_pipeline)
-from .projection import normalize_coordinates, tsne_project, umap_project
+                       reproduce_case_study, run_case_study, run_pipeline)
+from .projection import (normalize_coordinates, project_tsne, tsne_project,
+                         umap_project)
 
 # Visualization module requires plotly - import only when needed
 # from .visualization import create_authentic_mondrian_map, create_canvas_grid, create_color_legend
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 __all__ = [
     # Core classes
     "GridSystem",
@@ -63,6 +64,7 @@ __all__ = [
     "PipelineOutputs",
     "run_pipeline",
     "reproduce_case_study",
+    "run_case_study",
     # I/O
     "load_expression_matrix",
     "load_deg_table",
@@ -86,4 +88,5 @@ __all__ = [
     "tsne_project",
     "umap_project",
     "normalize_coordinates",
+    "project_tsne",
 ]

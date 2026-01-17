@@ -17,6 +17,84 @@ if TYPE_CHECKING:  # pragma: no cover
     from .pager_client import PagerClient
 
 
+def compute_weighted_fold_change(
+    fc_by_gene: pd.Series,
+    rp_scores_by_gene: Dict[str, float],
+    missing: str = "ignore",
+    normalize_weights: bool = True,
+    weight_norm: str = "sum_abs",
+) -> float:
+    """
+    Compute RP-score-weighted fold change.
+
+    Formula:
+        wFC = sum(w_i * FC_i) / norm
+    where norm is sum(|w_i|) or sum(w_i) depending on weight_norm.
+    """
+    rp_scores = pd.Series(rp_scores_by_gene, dtype=float)
+    common = fc_by_gene.index.intersection(rp_scores.index)
+    if len(common) == 0:
+        return 0.0
+
+    fc_vals = fc_by_gene.loc[common].astype(float)
+    weights = rp_scores.loc[common].astype(float)
+
+    if missing == "ignore":
+        mask = ~(fc_vals.isna() | weights.isna())
+        fc_vals = fc_vals[mask]
+        weights = weights[mask]
+    else:
+        raise ValueError(f"Unknown missing policy: {missing}")
+
+    if len(fc_vals) == 0:
+        return 0.0
+
+    if normalize_weights:
+        if weight_norm == "sum_abs":
+            norm = weights.abs().sum()
+        elif weight_norm == "sum":
+            norm = weights.sum()
+        else:
+            raise ValueError(f"Unknown weight_norm: {weight_norm}")
+    else:
+        norm = 1.0
+
+    if norm == 0:
+        return 0.0
+
+    return float((weights * fc_vals).sum() / norm)
+
+
+def compute_pathway_wfc_table(
+    pag_df: pd.DataFrame,
+    fc_by_gene: pd.Series,
+    rp_scores_map: Dict[str, Dict[str, float]],
+    pag_id_col: str = "GS_ID",
+) -> pd.DataFrame:
+    """Compute wFC and coverage metrics for each PAG in pag_df."""
+    records = []
+    for _, row in pag_df.iterrows():
+        pag_id = str(row[pag_id_col])
+        rp_scores = rp_scores_map.get(pag_id, {})
+        coverage = 0.0
+        used = 0
+        if rp_scores:
+            common = fc_by_gene.index.intersection(rp_scores.keys())
+            used = len(common)
+            coverage = used / max(len(rp_scores), 1)
+        wfc = compute_weighted_fold_change(fc_by_gene, rp_scores)
+        records.append(
+            {
+                pag_id_col: pag_id,
+                "wFC": wfc,
+                "wFC_gene_coverage": coverage,
+                "wFC_genes_used": used,
+            }
+        )
+    wfc_df = pd.DataFrame(records)
+    return pd.merge(pag_df, wfc_df, on=pag_id_col, how="left")
+
+
 def compute_wfc(
     gene_fc: pd.Series,
     rp_scores: pd.Series,

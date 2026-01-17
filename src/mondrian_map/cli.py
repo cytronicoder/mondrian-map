@@ -169,12 +169,13 @@ def cmd_visualize(args):
     title = args.title or "Mondrian Map"
 
     try:
+        if mem_df is not None:
+            df.attrs["relations_df"] = mem_df
         fig = create_authentic_mondrian_map(
             df,
-            title=title,
+            dataset_name=title,
             maximize=args.maximize,
             show_pathway_ids=args.show_ids,
-            mem_df=mem_df,
         )
 
         output_path = Path(args.out)
@@ -201,6 +202,39 @@ def cmd_visualize(args):
 
     except Exception as e:
         logger.error(f"Visualization failed: {e}")
+        if args.debug:
+            raise
+        return 1
+
+
+def cmd_reproduce_case_study(args):
+    """Reproduce the GLASS case study end-to-end."""
+    from .config import PipelineConfig
+    from .pipeline import run_case_study
+
+    setup_logging(verbose=True, debug=args.debug)
+    logger = logging.getLogger(__name__)
+
+    if args.config:
+        logger.info(f"Loading configuration from {args.config}")
+        config = PipelineConfig.from_yaml(args.config)
+    else:
+        config = PipelineConfig()
+
+    try:
+        run_case_study(
+            config,
+            glass_tp_path=args.tp,
+            glass_r1_path=args.r1,
+            glass_r2_path=args.r2,
+            out_dir=args.out,
+            force=args.force,
+        )
+        print("Case study reproduced successfully.")
+        print(f"Output directory: {args.out}")
+        return 0
+    except Exception as e:
+        logger.error(f"Case study reproduction failed: {e}")
         if args.debug:
             raise
         return 1
@@ -286,9 +320,9 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
             PackageNotFoundError = Exception
 
     try:
-        pkg_version = _pkg_version("mondrian-map") if _pkg_version else "1.2.0"
+        pkg_version = _pkg_version("mondrian-map") if _pkg_version else "1.2.1"
     except PackageNotFoundError:
-        pkg_version = "1.2.0"
+        pkg_version = "1.2.1"
 
     parser.add_argument(
         "--version",
@@ -443,6 +477,25 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         help="Enable debug output",
     )
     viz_parser.set_defaults(func=cmd_visualize)
+
+    reproduce_case_parser = subparsers.add_parser(
+        "reproduce-case-study",
+        help="Reproduce the GLASS case study end-to-end",
+    )
+    reproduce_case_parser.add_argument("--tp", required=True, help="TP matrix path")
+    reproduce_case_parser.add_argument("--r1", required=True, help="R1 matrix path")
+    reproduce_case_parser.add_argument("--r2", required=True, help="R2 matrix path")
+    reproduce_case_parser.add_argument("--out", required=True, help="Output directory")
+    reproduce_case_parser.add_argument(
+        "--config", help="Optional YAML configuration file"
+    )
+    reproduce_case_parser.add_argument(
+        "--force", action="store_true", help="Overwrite existing outputs"
+    )
+    reproduce_case_parser.add_argument(
+        "--debug", action="store_true", help="Enable debug output"
+    )
+    reproduce_case_parser.set_defaults(func=cmd_reproduce_case_study)
 
     config_parser = subparsers.add_parser(
         "config",

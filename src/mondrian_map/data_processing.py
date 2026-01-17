@@ -31,7 +31,12 @@ def get_points(df: pd.DataFrame, scale: float = 1) -> List[Tuple[float, float]]:
     ]
 
 
-def get_areas(df: pd.DataFrame, scale: float = AREA_SCALAR) -> List[float]:
+def get_areas(
+    df: pd.DataFrame,
+    scale: float = AREA_SCALAR,
+    min_area: float = 400.0,
+    max_area: float = 20000.0,
+) -> List[float]:
     """Calculate block areas proportional to pathway fold change magnitude.
 
     Block area is derived from log2-transformed absolute weighted fold change,
@@ -44,7 +49,9 @@ def get_areas(df: pd.DataFrame, scale: float = AREA_SCALAR) -> List[float]:
     Returns:
         List of scaled area values for pathway visualization blocks
     """
-    return list(abs(np.log2(df["wFC"])) * scale)
+    safe_wfc = df["wFC"].clip(lower=1e-6).astype(float)
+    areas = abs(np.log2(safe_wfc)) * scale
+    return list(areas.clip(lower=min_area, upper=max_area))
 
 
 def get_colors(
@@ -118,12 +125,15 @@ def get_relations(
     relations = []
     rel_count = {}
 
-    for key in set(mem_df["GS_A_ID"]):
+    col_a = "GS_A_ID" if "GS_A_ID" in mem_df.columns else "GS_ID_A"
+    col_b = "GS_B_ID" if "GS_B_ID" in mem_df.columns else "GS_ID_B"
+
+    for key in set(mem_df[col_a]):
         rel_count[key[-4:]] = 0
 
     for index, row in mem_df.iterrows():
-        gs_a_id = row["GS_A_ID"][-4:]
-        gs_b_id = row["GS_B_ID"][-4:]
+        gs_a_id = row[col_a][-4:]
+        gs_b_id = row[col_b][-4:]
 
         if (
             (gs_b_id, gs_a_id) not in relations
@@ -308,3 +318,100 @@ def prepare_pathway_data(
         "relations": relations,
         "network_data": mem_df,
     }
+
+
+def build_profile_expression(
+    expr_tp: pd.DataFrame,
+    expr_r1: pd.DataFrame,
+    expr_r2: pd.DataFrame,
+    patient_id: str,
+    baseline_ids: Optional[List[str]] = None,
+) -> Dict[str, pd.Series]:
+    """
+    Build per-timepoint expression profiles for a patient or baseline cohort.
+
+    Returns a dict mapping {"TP", "R1", "R2"} to gene expression series.
+    """
+
+    def _extract_series(expr_df: pd.DataFrame, ids: List[str]) -> pd.Series:
+        missing = [pid for pid in ids if pid not in expr_df.columns]
+        if missing:
+            raise ValueError(f"Missing patient IDs in expression matrix: {missing}")
+        if len(ids) == 1:
+            return expr_df[ids[0]].astype(float)
+        return expr_df[ids].mean(axis=1).astype(float)
+
+    if baseline_ids:
+        ids = baseline_ids
+    else:
+        ids = [patient_id]
+
+    return {
+        "TP": _extract_series(expr_tp, ids),
+        "R1": _extract_series(expr_r1, ids),
+        "R2": _extract_series(expr_r2, ids),
+    }
+
+
+def filter_genes_by_expression_threshold(
+    expr_tp: pd.DataFrame,
+    expr_r1: pd.DataFrame,
+    expr_r2: pd.DataFrame,
+    threshold: float = 0.001,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, int]]:
+    """
+    Drop genes with max expression < threshold across all matrices.
+    """
+    combined = pd.concat(
+        [expr_tp.max(axis=1), expr_r1.max(axis=1), expr_r2.max(axis=1)], axis=1
+    )
+    max_expr = combined.max(axis=1)
+    mask = max_expr >= threshold
+    stats = {
+        "genes_before": int(len(max_expr)),
+        "genes_after": int(mask.sum()),
+        "genes_dropped": int((~mask).sum()),
+    }
+    return expr_tp.loc[mask], expr_r1.loc[mask], expr_r2.loc[mask], stats
+
+
+def normalize_coords_to_canvas(
+    coords: np.ndarray,
+    canvas_min: float = 0.0,
+    canvas_max: float = 1000.0,
+    pad: float = 20.0,
+    epsilon: float = 1e-9,
+) -> np.ndarray:
+    """Normalize coordinates to canvas bounds with padding.
+
+    Args:
+        coords: Input coordinates as (n, 2) array
+        canvas_min: Minimum canvas coordinate
+        canvas_max: Maximum canvas coordinate
+        pad: Padding from canvas edges
+        epsilon: Minimum span threshold to prevent numerical instability
+
+    Returns:
+        Normalized coordinates within canvas bounds
+    """
+    coords = np.asarray(coords, dtype=float)
+    if coords.ndim != 2 or coords.shape[1] != 2:
+        raise ValueError("coords must be a 2D array with shape (n, 2)")
+
+    min_vals = coords.min(axis=0)
+    max_vals = coords.max(axis=0)
+    span = max_vals - min_vals
+    target_min = canvas_min + pad
+    target_max = canvas_max - pad
+    target_span = max(target_max - target_min, epsilon)
+
+    normalized = np.zeros_like(coords)
+    for i in range(2):
+        # Use epsilon for numerical stability with very small spans
+        if span[i] < epsilon:
+            normalized[:, i] = (target_min + target_max) / 2.0
+        else:
+            normalized[:, i] = (coords[:, i] - min_vals[i]) / span[
+                i
+            ] * target_span + target_min
+    return normalized

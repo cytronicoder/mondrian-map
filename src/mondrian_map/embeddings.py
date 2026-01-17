@@ -5,12 +5,16 @@ This module handles pathway embedding generation using various language models
 including SentenceTransformers and optionally LLM2Vec.
 """
 
+import hashlib
+import json
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
+from .config import EmbeddingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -43,31 +47,6 @@ PATHWAY_DESCRIPTION_INSTRUCTION = (
     "Given a pathway name and its description, encode the biological "
     "significance and functional associations of this pathway:"
 )
-
-
-@dataclass
-class EmbeddingConfig:
-    """Configuration parameters for neural embedding generation.
-
-    Attributes
-    ----------
-    model_name : str
-        Identifier of the pre-trained embedding model.
-    model_type : {'sentence_transformer', 'llm2vec'}
-        Embedding model architecture.
-    batch_size : int
-        Number of samples processed in parallel during encoding.
-    normalize : bool
-        Whether to apply L2 normalization to embeddings.
-    max_length : int
-        Maximum token sequence length for model input.
-    prompt_type : str
-        Template for constructing pathway descriptions.
-    max_genes : int
-        Maximum genes included in pathway prompts.
-    device : str, optional
-        Compute device ('cpu', 'cuda', or None for auto-detection).
-    """
 
 
 class EmbeddingGenerator:
@@ -495,60 +474,68 @@ def build_prompts(
 
 def embed_pathways(
     pathway_ids: List[str],
-    prompt_type: str,
-    pathway_info: Optional[Dict[str, Dict[str, Any]]] = None,
-    pager_client: Optional["PagerClient"] = None,
-    config: Optional[EmbeddingConfig] = None,
-) -> Tuple[np.ndarray, List[str]]:
+    prompts: List[str],
+    config: "EmbeddingConfig",
+    cache_key: Optional[str] = None,
+) -> np.ndarray:
     """
-    Generate embeddings for pathways using specified prompt type.
+    Generate embeddings for pathways using pre-built prompts.
+
+    Notes:
+        The function returns a NumPy array of embeddings ordered to match the
+        input `pathway_ids` list. Callers should maintain the `pathway_ids`
+        order to map embeddings back to pathway identifiers.
 
     Args:
-        pathway_ids: List of pathway IDs
-        prompt_type: Type of prompt (see build_prompts)
-        pathway_info: Pathway metadata
-        pager_client: PagerClient for gene data
+        pathway_ids: List of pathway IDs (determines embedding order)
+        prompts: List of text prompts (must match pathway_ids length)
         config: Embedding configuration
+        cache_key: Optional cache key for storing/loading embeddings
 
     Returns:
-        Tuple of (embeddings array, ordered pathway IDs)
+        NumPy array of embeddings with shape (len(pathway_ids), embedding_dim)
     """
-    config = config or EmbeddingConfig(prompt_type=prompt_type)
+    if len(pathway_ids) != len(prompts):
+        raise ValueError("pathway_ids and prompts must be the same length")
 
-    # Build prompts
-    is_llm2vec = config.model_type == "llm2vec"
-    prompts = build_prompts(
-        pathway_ids,
-        prompt_type,
-        pathway_info=pathway_info,
-        pager_client=pager_client,
-        max_genes=config.max_genes,
-        for_llm2vec=is_llm2vec,
-    )
+    cache_path = None
+    if config.cache_dir:
+        cache_dir = Path(config.cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        if cache_key is None:
+            payload = {
+                "model": config.model_name,
+                "type": config.model_type,
+                "normalize": config.normalize,
+                "prompts": prompts,
+            }
+            cache_key = hashlib.md5(
+                json.dumps(payload, sort_keys=True).encode("utf-8")
+            ).hexdigest()
+        cache_path = cache_dir / f"{cache_key}.npy"
+        if cache_path.exists():
+            return np.load(cache_path)
 
-    # Filter out empty prompts
-    valid_ids = [pid for pid, p in prompts.items() if p]
-    texts = [prompts[pid] for pid in valid_ids]
-
-    if len(texts) == 0:
-        raise ValueError("No valid prompts generated")
-
-    # Generate embeddings
     generator = EmbeddingGenerator(config)
+    is_llm2vec = config.model_type == "llm2vec"
 
     if is_llm2vec:
-        embeddings = generator._ensure_model_loaded()
-        # For LLM2Vec, texts are [instruction, text] pairs
-        embeddings = generator._model.encode(texts)
-        if not isinstance(embeddings, np.ndarray):
-            embeddings = embeddings.numpy()
+        generator._ensure_model_loaded()
+        embeddings = generator._model.encode(prompts)
+        if hasattr(embeddings, "detach"):
+            embeddings = embeddings.detach().cpu().numpy()
+        elif not isinstance(embeddings, np.ndarray):
+            embeddings = np.asarray(embeddings)
         if config.normalize:
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             embeddings = embeddings / (norms + 1e-8)
     else:
-        embeddings = generator.embed_texts(texts)
+        embeddings = generator.embed_texts(prompts)
 
-    return embeddings, valid_ids
+    if cache_path is not None:
+        np.save(cache_path, embeddings)
+
+    return embeddings
 
 
 def normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:

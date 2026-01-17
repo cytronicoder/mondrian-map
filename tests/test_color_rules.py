@@ -2,10 +2,10 @@
 Tests for color classification rules.
 
 These tests verify that pathway color classification follows the paper's rules:
-- Red (up): wFC >= 1.5
-- Blue (down): wFC <= 0.5
-- Yellow (not significant): pFDR >= 0.05
-- Gray (mixed): all other cases
+- Red (up): wFC >= 1.25 with pFDR < 0.05
+- Blue (down): wFC <= 0.75 with pFDR < 0.05
+- Yellow (mixed): pFDR < 0.05 and between thresholds
+- Black (not significant): pFDR >= 0.05
 """
 
 import numpy as np
@@ -46,7 +46,7 @@ class TestColorClassification:
         assert colors[0] == "blue" or colors[0].lower() == "#0000ff"
 
     def test_not_significant_yellow(self):
-        """Test that non-significant pathways (pFDR >= 0.05) are yellow."""
+        """Test that non-significant pathways (pFDR >= 0.05) are black."""
         df = pd.DataFrame(
             {
                 "GS_ID": ["WP001"],
@@ -56,14 +56,10 @@ class TestColorClassification:
         )
 
         colors = get_colors(df)
-        assert (
-            colors[0] == "yellow"
-            or "ffcc" in colors[0].lower()
-            or "ff0" in colors[0].lower()
-        )
+        assert colors[0] == "black" or colors[0].lower() == "#000000"
 
     def test_mixed_gray(self):
-        """Test that mixed pathways are gray."""
+        """Test that mixed pathways are yellow."""
         df = pd.DataFrame(
             {
                 "GS_ID": ["WP001"],
@@ -73,13 +69,7 @@ class TestColorClassification:
         )
 
         colors = get_colors(df)
-        # Should be gray/white/neutral
-        assert (
-            colors[0] == "gray"
-            or colors[0] == "white"
-            or "ccc" in colors[0].lower()
-            or "808" in colors[0].lower()
-        )
+        assert colors[0] == "yellow" or colors[0].lower().startswith("#")
 
     def test_boundary_up(self):
         """Test boundary case: wFC exactly 1.5 should be red."""
@@ -108,7 +98,7 @@ class TestColorClassification:
         assert colors[0] == "blue" or colors[0].lower() == "#0000ff"
 
     def test_boundary_pfdr(self):
-        """Test boundary case: pFDR exactly 0.05 should be yellow."""
+        """Test boundary case: pFDR exactly 0.05 should be black."""
         df = pd.DataFrame(
             {
                 "GS_ID": ["WP001"],
@@ -118,11 +108,7 @@ class TestColorClassification:
         )
 
         colors = get_colors(df)
-        # At boundary - depends on implementation (>= vs >)
-        # Just check it returns a valid color
-        assert colors[0] in ["red", "blue", "yellow", "gray", "white"] or colors[
-            0
-        ].startswith("#")
+        assert colors[0] == "black" or colors[0].startswith("#")
 
 
 class TestClassifyPathways:
@@ -174,11 +160,11 @@ class TestColorDescriptions:
 
     def test_get_color_description(self):
         """Test getting human-readable color descriptions."""
-        desc = get_mondrian_color_description()
+        desc_up = get_mondrian_color_description(wfc=1.3, p_value=0.01)
+        desc_down = get_mondrian_color_description(wfc=-1.2, p_value=0.01)
 
-        assert "red" in desc.lower() or "up" in desc.lower()
-        assert "blue" in desc.lower() or "down" in desc.lower()
-        assert "yellow" in desc.lower() or "significant" in desc.lower()
+        assert "red" in desc_up.lower() or "up" in desc_up.lower()
+        assert "blue" in desc_down.lower() or "down" in desc_down.lower()
 
 
 class TestMultiplePathways:

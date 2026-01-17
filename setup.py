@@ -22,7 +22,7 @@ with open(requirements_path) as f:
 
 setup(
     name="mondrian-map",
-    version="1.2.0",
+    version="1.2.1",
     author="AIMED Lab",
     author_email="jakechen@uab.edu",
     description="Authentic implementation of Mondrian Maps for biological pathway visualization",

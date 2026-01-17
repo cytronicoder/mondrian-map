@@ -1,6 +1,6 @@
 # Release Notes - Mondrian Map Explorer
 
-## Version 1.2.0 (January 17, 2026)
+## Version 1.2.1 (January 17, 2026)
 
 This release finalizes the cleanup of remaining modules, removes backward compatibility shims, and updates release notes and package metadata (2026-01-17).
 
@@ -20,7 +20,7 @@ This release finalizes the cleanup of remaining modules, removes backward compat
   - Minor data handling fixes and improved handling of rendering layers and session storage (store compact customdata arrays).
 - Tests, docs & packaging
   - Added and improved tests for layout, R-tree indexing, and routing; enhanced documentation across `docs/` and `DEVELOPMENT.md`.
-  - Updated package structure and CLI implementation; package metadata bumped to 1.2.0 and `pyproject.toml` standardized.
+  - Updated package structure and CLI implementation; package metadata bumped to 1.2.1 and `pyproject.toml` standardized.
 - Tooling & housekeeping
   - Linting/formatting and numerous small refactors to improve maintainability and readability (`ruff` fixes applied across the codebase).
   - Added outputs directory to `.gitignore` and improved repository structure; updated Quick Start and deployment guides.

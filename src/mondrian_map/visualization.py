@@ -5,8 +5,9 @@ This module contains the visualization functions including the complex
 line generation algorithms and Plotly figure creation.
 """
 
+import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,9 @@ from plotly.subplots import make_subplots
 from .core import (LINE_WIDTH, Block, Colors, Corner, CornerPos, GridSystem,
                    Line, LineDir, Point, adjust, adjust_d, blank_canvas,
                    euclidean_distance_point, get_line_direction)
-from .data_processing import prepare_pathway_data
+from .data_processing import get_relations, prepare_pathway_data
+
+logger = logging.getLogger(__name__)
 
 
 def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
@@ -983,30 +986,76 @@ def has_structural_purpose_horizontal(
 def create_authentic_mondrian_map(
     df: pd.DataFrame,
     dataset_name: str,
-    mem_df: Optional[pd.DataFrame] = None,
     maximize: bool = False,
     show_pathway_ids: bool = True,
     show_partitions: bool = True,
-    partition_max_lines: int = 20,
-    partition_color: str = "#D0D0D0",
-    partition_width: int = 2,
-    show_insignificant_edges: bool = False,
-    no_relations_color: str = "#CDB4DB",
     edge_top_k: int = 2,
     edge_max_total: int = 30,
-    show_legend: bool = True,
-    tile_area_scale: float = 0.97,
-    label_min_side: float = 30.0,  # Default matches original threshold for backward compatibility
+    seed: int = 0,
 ) -> go.Figure:
     """
-    Create authentic Mondrian map using the exact algorithm from the notebooks
+    Create authentic Mondrian map using the exact algorithm from the notebooks.
+
+    Args:
+        df: Pathway data with wFC, pFDR, x, y columns. Relations can be attached
+            via df.attrs['relations_df']
+        dataset_name: Name of the dataset for file lookups
+        maximize: Whether to maximize tile sizes
+        show_pathway_ids: Whether to display pathway IDs on tiles
+        show_partitions: Whether to show partition lines
+        edge_top_k: Top K edges per pathway to display
+        edge_max_total: Maximum total edges to display
+        seed: Random seed for deterministic layout (seeds numpy.random)
+
+    Returns:
+        Plotly Figure object
+
+    Note:
+        The seed parameter currently only seeds numpy.random.seed(). Additional
+        randomness may occur in the layout algorithm. For fully deterministic
+        results, ensure all random operations use the seeded numpy.random state.
     """
     if len(df) == 0:
         return go.Figure()
 
+    # Hardcoded visual parameters for consistency with paper figures
+    # These values were determined through iterative refinement and should
+    # not be changed without careful consideration of visual impact
+    partition_max_lines = 20
+    partition_color = "#D0D0D0"
+    partition_width = 2
+    show_insignificant_edges = False
+    no_relations_color = "#CDB4DB"
+    show_legend = False
+    tile_area_scale = 0.97
+    label_min_side = 30.0
+
+    # Seed random number generator for deterministic layout
+    # Note: This seeds numpy.random but may not cover all sources of randomness
+    np.random.seed(seed)
+
+    # Extract relations from DataFrame metadata
+    # WARNING: df.attrs is not preserved through all DataFrame operations
+    # (e.g., slicing, copying with copy(), some groupby operations).
+    # If relations_df is None here but you expect relations, the DataFrame
+    # may have been copied or modified before reaching this function.
+    # To avoid this, either:
+    #   1) Pass the DataFrame directly without intermediate copies, or
+    #   2) Re-attach attrs after operations: new_df.attrs = old_df.attrs
+    relations_df = df.attrs.get("relations_df")
+    if relations_df is not None and not isinstance(relations_df, pd.DataFrame):
+        logger.warning(
+            f"relations_df in df.attrs is not a DataFrame (got {type(relations_df)}). "
+            "Ignoring relations."
+        )
+        relations_df = None
+
     # Prepare data using the data processing module
     network_dir = Path("data/case_study/pathway_networks")
     data = prepare_pathway_data(df, dataset_name, network_dir)
+    if isinstance(relations_df, pd.DataFrame):
+        data["relations"] = get_relations(relations_df)
+        data["network_data"] = relations_df
 
     center_points = data["center_points"]
     areas = [area * tile_area_scale for area in data["areas"]]
@@ -1069,9 +1118,11 @@ def create_authentic_mondrian_map(
     all_manhattan_paths: List[Tuple[List[Tuple[float, float]], str]] = []
     edge_strengths: Dict[Tuple[str, str], float] = {}
     if isinstance(network_data, pd.DataFrame) and len(network_data) > 0:
+        col_a = "GS_A_ID" if "GS_A_ID" in network_data.columns else "GS_ID_A"
+        col_b = "GS_B_ID" if "GS_B_ID" in network_data.columns else "GS_ID_B"
         for _, row in network_data.iterrows():
-            gs_a = str(row["GS_A_ID"])[-4:]
-            gs_b = str(row["GS_B_ID"])[-4:]
+            gs_a = str(row[col_a])[-4:]
+            gs_b = str(row[col_b])[-4:]
             key = tuple(sorted((gs_a, gs_b)))
             if "PVALUE" in row:
                 # Use -log(p) so smaller p-values (more significant) get higher scores
@@ -1403,10 +1454,8 @@ def create_canvas_grid(
         mondrian_fig = create_authentic_mondrian_map(
             df,
             name,
-            mem_df=None,
             maximize=False,
             show_pathway_ids=show_pathway_ids,
-            show_legend=False,
         )
 
         # Add traces to subplot
