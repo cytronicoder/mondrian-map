@@ -345,7 +345,9 @@ def create_smart_grid_lines(grid_system: GridSystem, blocks: List[Block]) -> Lis
     return []
 
 
-def _quantize_positions(values: List[float], step: float, epsilon: float = 1.0) -> List[float]:
+def _quantize_positions(
+    values: List[float], step: float, epsilon: float = 1.0
+) -> List[float]:
     """Quantize and merge near-duplicate positions to stabilize sparse partitions."""
     quantized = [round(value / step) * step for value in values]
     quantized.sort()
@@ -464,7 +466,9 @@ def _get_block_center(block: Block) -> Tuple[float, float]:
     )
 
 
-def _block_ports(block: Block, target_center: Tuple[float, float]) -> List[Tuple[float, float]]:
+def _block_ports(
+    block: Block, target_center: Tuple[float, float]
+) -> List[Tuple[float, float]]:
     """Return candidate ports on block edges ordered by preferred routing direction."""
     left = block.top_left_p[0]
     right = block.bottom_right_p[0]
@@ -474,10 +478,10 @@ def _block_ports(block: Block, target_center: Tuple[float, float]) -> List[Tuple
     tx, ty = target_center
 
     ports = {
-        "left": (left, cy),
-        "right": (right, cy),
-        "top": (cx, top),
-        "bottom": (cx, bottom),
+        "left": (max(0, left - 3), cy),
+        "right": (min(1000, right + 3), cy),
+        "top": (cx, max(0, top - 3)),
+        "bottom": (cx, min(1000, bottom + 3)),
     }
 
     dx = tx - cx
@@ -489,9 +493,11 @@ def _block_ports(block: Block, target_center: Tuple[float, float]) -> List[Tuple
         primary = "bottom" if dy >= 0 else "top"
         secondary = ["left", "right"]
 
-    ordered = [primary] + secondary + [
-        key for key in ["left", "right", "top", "bottom"] if key != primary
-    ]
+    ordered = (
+        [primary]
+        + secondary
+        + [key for key in ["left", "right", "top", "bottom"] if key != primary]
+    )
     seen = set()
     result = []
     for key in ordered:
@@ -502,7 +508,10 @@ def _block_ports(block: Block, target_center: Tuple[float, float]) -> List[Tuple
 
 
 def _segment_intersects_rect(
-    a: Tuple[float, float], b: Tuple[float, float], rect: Dict[str, float], epsilon: float = 1e-6
+    a: Tuple[float, float],
+    b: Tuple[float, float],
+    rect: Dict[str, float],
+    epsilon: float = 1e-6,
 ) -> bool:
     """Check if an axis-aligned segment crosses a rectangle interior."""
     left = rect["left"] + epsilon
@@ -544,7 +553,9 @@ def _path_hits_obstacles(
     return False
 
 
-def _simplify_path(path: List[Tuple[float, float]], epsilon: float = 1e-6) -> List[Tuple[float, float]]:
+def _simplify_path(
+    path: List[Tuple[float, float]], epsilon: float = 1e-6
+) -> List[Tuple[float, float]]:
     simplified = []
     for point in path:
         if not simplified or (
@@ -1084,15 +1095,22 @@ def create_authentic_mondrian_map(
 
     # Convert to Plotly traces
     # IMPORTANT: Trace order determines z-order (rendering layers)
-    # 1. Partition lines via layout shapes (bottom layer)
-    # 2. Tile rectangles (middle layer)
-    # 3. Crosstalk edges (top)
-    # 4. Labels (top via annotations)
-    # 5. Click-target markers (topmost, invisible)
+    # 1. Partition lines via layout shapes (bottom layer, layer="below")
+    # 2. Colored tiles (middle layer)
+    # 3. Black tile borders (part of tiles)
+    # 4. Connecting (crosstalk) lines (above tiles)
+    # 5. Labels and click-target markers (topmost)
     traces = []
     tile_traces = []
     click_traces = []
+    line_traces = []
     annotations = []
+
+    # Style constants to match paper-style spec
+    PORT_OFFSET = 3  # outward offset (in data units, approx pixels at 1000px canvas)
+    EDGE_WIDTH = 4  # connecting line width
+    # Tile border width scales with maximize flag (full-size vs overview)
+    tile_line_width = LINE_WIDTH if maximize else max(3, LINE_WIDTH - 1) 
 
     # Add blocks as filled rectangles
     for block in all_blocks:
@@ -1139,7 +1157,8 @@ def create_authentic_mondrian_map(
                 y=y_coords,
                 fill="toself",
                 fillcolor=fill_color,
-                line=dict(color=str(Colors.BLACK.value), width=LINE_WIDTH),
+                # Tile borders are strong (paper-style)
+                line=dict(color=str(Colors.BLACK.value), width=tile_line_width),
                 mode="lines",
                 hoverinfo="none",
                 name="",
@@ -1165,12 +1184,14 @@ def create_authentic_mondrian_map(
         marker_size = max(6, min(18, int(min_side * 0.6)))
 
         # Attach click metadata via invisible markers for Streamlit selection.
+        # Click target markers - keep size within [6,18] bounds
+        click_marker_size = min(18, marker_size + 6)
         click_traces.append(
             go.Scatter(
                 x=[cx],
                 y=[cy],
                 mode="markers",
-                marker=dict(size=marker_size + 6, opacity=0),
+                marker=dict(size=click_marker_size, opacity=0),
                 customdata=[payload],
                 hoverinfo="skip",
                 showlegend=False,
@@ -1179,7 +1200,9 @@ def create_authentic_mondrian_map(
 
         if show_pathway_ids and min_side >= label_min_side:
             normalized_color = _normalize_color_name(fill_color)
-            text_color = "white" if normalized_color in ["red", "blue", "black"] else "black"
+            text_color = (
+                "white" if normalized_color in ["red", "blue", "black"] else "black"
+            )
             label_y = block.top_left_p[1] + min(14, height * 0.25)
             font_size = max(8, min(12, int(min_side / 6)))
             annotations.append(
@@ -1196,37 +1219,41 @@ def create_authentic_mondrian_map(
             )
 
     # Add Manhattan relationship lines (PAG-to-PAG crosstalk)
+    # These should be rendered BEFORE tiles so they appear behind
     for path, edge_color in all_manhattan_paths:
         x_vals = [point[0] for point in path]
         y_vals = [point[1] for point in path]
-        traces.append(
+        line_traces.append(
             go.Scatter(
                 x=x_vals,
                 y=y_vals,
                 mode="lines",
-                line=dict(color=edge_color, width=3),
+                line=dict(color=edge_color, width=EDGE_WIDTH),
                 showlegend=False,
                 hoverinfo="skip",
             )
         )
 
-    traces = tile_traces + traces + click_traces
+    # Combine traces in correct order: tiles first, connecting lines above tiles, clicks on top
+    traces = tile_traces + line_traces + click_traces
 
     # Create figure
     fig = go.Figure(data=traces)
 
+    # Add shapes: partition lines (gray grid) and border
     shapes = []
     if show_partitions:
-        shapes.extend(
-            create_partition_line_shapes(
-                all_blocks,
-                grid_system.block_width,
-                partition_max_lines,
-                partition_color,
-                partition_width,
-            )
+        # Add partition lines first (bottom layer)
+        partition_shapes = create_partition_line_shapes(
+            all_blocks,
+            grid_system.block_width,
+            partition_max_lines,
+            partition_color,
+            partition_width,
         )
+        shapes.extend(partition_shapes)
 
+    # Add black border on top of everything
     shapes.append(
         dict(
             type="rect",
@@ -1234,7 +1261,7 @@ def create_authentic_mondrian_map(
             y0=0,
             x1=1000,
             y1=1000,
-            line=dict(color="black", width=6),
+            line=dict(color="black", width=8),
             fillcolor="rgba(0,0,0,0)",
             layer="above",
         )
@@ -1317,6 +1344,8 @@ def create_canvas_grid(
         vertical_spacing=0.1,
     )
 
+    all_shapes = []
+
     # Add each Mondrian map to its canvas cell
     for idx, (df, name) in enumerate(
         zip(
@@ -1340,6 +1369,28 @@ def create_canvas_grid(
         # Add traces to subplot
         for trace in mondrian_fig.data:
             fig.add_trace(trace, row=row, col=col)
+
+        # Add shapes (partition lines and borders) to subplot
+        # Transfer shapes to the correct subplot by adjusting xref/yref
+        if hasattr(mondrian_fig, 'layout') and hasattr(mondrian_fig.layout, 'shapes'):
+            for shape in mondrian_fig.layout.shapes:
+                # Convert Plotly shape object to dictionary
+                if hasattr(shape, 'to_plotly_json'):
+                    shape_copy = shape.to_plotly_json()
+                else:
+                    shape_copy = shape
+                
+                # Set the shape to apply to the specific subplot
+                if canvas_rows == 1 and canvas_cols == 1:
+                    # Single subplot, use default x/y refs
+                    shape_copy['xref'] = 'x'
+                    shape_copy['yref'] = 'y'
+                else:
+                    # Multiple subplots, need to specify which axis
+                    axis_suffix = '' if idx == 0 else str(idx + 1)
+                    shape_copy['xref'] = f'x{axis_suffix}'
+                    shape_copy['yref'] = f'y{axis_suffix}'
+                all_shapes.append(shape_copy)
 
         # Configure subplot axes
         fig.update_xaxes(
@@ -1367,6 +1418,7 @@ def create_canvas_grid(
         width=1200,
         margin=dict(l=50, r=50, t=100, b=50),
         hovermode=False,  # Disable hover completely
+        shapes=all_shapes,  # Add all shapes to the figure
     )
 
     return fig
