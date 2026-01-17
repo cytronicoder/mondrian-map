@@ -18,6 +18,10 @@ from .core import (LINE_WIDTH, Block, Colors, Corner, CornerPos, GridSystem,
                    euclidean_distance_point, get_line_direction)
 from .data_processing import prepare_pathway_data
 
+# Constants for edge strength scoring
+MIN_PVALUE_OFFSET = 1e-300  # Small offset to avoid log(0)
+MAX_LOG_SCORE = 300.0  # Maximum score for p-value = 0
+
 
 def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
     """Find the closest corner of block_a to block_b's center"""
@@ -1020,7 +1024,7 @@ def create_authentic_mondrian_map(
                 # Use -log(pvalue) for semantically correct scoring
                 # Smaller p-values should yield higher scores
                 pval = float(row["PVALUE"])
-                score = -np.log(pval + 1e-300) if pval > 0 else 300.0
+                score = -np.log(pval + MIN_PVALUE_OFFSET) if pval > 0 else MAX_LOG_SCORE
             elif "SIMILARITY" in row:
                 score = float(row["SIMILARITY"])
             else:
