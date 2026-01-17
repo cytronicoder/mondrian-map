@@ -34,15 +34,23 @@ def make_synthetic_glass_matrices(
 
 
 class MockPagerClient(PagerClient):
+    """Mock PAGER client for testing without making real API calls.
+
+    All method signatures match the parent PagerClient class to ensure
+    proper type checking and compatibility.
+    """
+
     def __init__(self, config):
         super().__init__(config)
 
-    def run_gnpa(self, gene_symbols, source: str):  # type: ignore[override]
+    def run_gnpa(self, gene_symbols: List[str], source: str) -> pd.DataFrame:
         pag_ids = [f"WAG{1000 + i:06d}" for i in range(12)]
         data = []
         for i, pag_id in enumerate(pag_ids):
             genes = gene_symbols[:5]
-            rp_genes = ";".join([f"{g}:{1.0 / (j + 1):.3f}" for j, g in enumerate(genes)])
+            rp_genes = ";".join(
+                [f"{g}:{1.0 / (j + 1):.3f}" for j, g in enumerate(genes)]
+            )
             data.append(
                 {
                     "GS_ID": pag_id,
@@ -57,10 +65,20 @@ class MockPagerClient(PagerClient):
         self._write_manifest("mock_gnpa")
         return df
 
-    def filter_significant_pags(self, pag_df, pvalue_col, cutoff=0.05):  # type: ignore[override]
+    def filter_significant_pags(
+        self,
+        pag_df: pd.DataFrame,
+        pvalue_col: str,
+        cutoff: float = 0.05,
+    ) -> pd.DataFrame:
         return pag_df[pag_df[pvalue_col] < cutoff].reset_index(drop=True)
 
-    def get_pag_pag_network(self, pag_ids, network_type="m", source=None):  # type: ignore[override]
+    def get_pag_pag_network(
+        self,
+        pag_ids: List[str],
+        network_type: str = "m",
+        source: str | None = None,
+    ) -> pd.DataFrame:
         edges = []
         for i in range(min(len(pag_ids) - 1, 5)):
             edges.append(
