@@ -941,9 +941,6 @@ def run_case_study(
                 source=cfg.pager.source,
             )
             if not relations.empty:
-                relations = relations.rename(
-                    columns={"GS_ID_A": "GS_ID_A", "GS_ID_B": "GS_ID_B"}
-                )
                 relations = relations[
                     relations["GS_ID_A"].isin(attributes["GS_ID"])
                     & relations["GS_ID_B"].isin(attributes["GS_ID"])
