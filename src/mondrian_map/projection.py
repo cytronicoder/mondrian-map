@@ -102,7 +102,8 @@ def tsne_project(
     )
 
     n_samples = embeddings.shape[0]
-    if np.allclose(embeddings, embeddings[0]):
+    variances = np.var(embeddings, axis=0)
+    if np.allclose(variances, 0.0):
         logger.warning("Embeddings are identical; returning zero coordinates.")
         return np.zeros((n_samples, 2))
     if perplexity >= n_samples:
