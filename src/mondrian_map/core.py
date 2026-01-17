@@ -67,8 +67,32 @@ def count_overlaps(rects: list, padding: float = 0.0) -> int:
     return overlaps
 
 
-def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000)):
-    """Snap a rectangle to the nearest grid within bounds."""
+def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = None):
+    """
+    Snap a rectangle to the nearest grid within bounds.
+    
+    Ensures snapped rectangles maintain minimum dimensions to prevent zero-sized
+    or invisible tiles that could cause rendering issues.
+    
+    Parameters
+    ----------
+    rect : List[Tuple[float, float]]
+        Rectangle as [(x0, y0), (x1, y1)]
+    grid : int
+        Grid size for snapping (default: 20)
+    bounds : Tuple[int, int]
+        Canvas bounds (default: (0, 1000))
+    min_size : int, optional
+        Minimum width/height after snapping. Defaults to grid size.
+        
+    Returns
+    -------
+    List[Tuple[float, float]]
+        Snapped rectangle with validated minimum dimensions
+    """
+    if min_size is None:
+        min_size = grid
+        
     (x0, y0), (x1, y1) = rect
     minx, maxx = sorted([x0, x1])
     miny, maxy = sorted([y0, y1])
@@ -84,6 +108,30 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000)):
 
     minx, maxx = sorted([minx, maxx])
     miny, maxy = sorted([miny, maxy])
+    
+    # Ensure minimum width - expand if both corners snapped to same grid point
+    if maxx - minx < min_size:
+        center_x = (minx + maxx) / 2
+        minx = max(bounds[0], center_x - min_size / 2)
+        maxx = min(bounds[1], center_x + min_size / 2)
+        # If expanding from center would exceed bounds, expand in available direction
+        if maxx - minx < min_size:
+            if minx == bounds[0]:
+                maxx = min(bounds[1], minx + min_size)
+            else:
+                minx = max(bounds[0], maxx - min_size)
+    
+    # Ensure minimum height
+    if maxy - miny < min_size:
+        center_y = (miny + maxy) / 2
+        miny = max(bounds[0], center_y - min_size / 2)
+        maxy = min(bounds[1], center_y + min_size / 2)
+        # If expanding from center would exceed bounds, expand in available direction
+        if maxy - miny < min_size:
+            if miny == bounds[0]:
+                maxy = min(bounds[1], miny + min_size)
+            else:
+                miny = max(bounds[0], maxy - min_size)
 
     return [(minx, miny), (maxx, maxy)]
 
