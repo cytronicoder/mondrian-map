@@ -50,7 +50,12 @@ class TestDynamicMarkerSizing:
             f"Expected {len(sample_dataframe)} marker traces, found {len(marker_traces)}"
 
     def test_marker_size_within_bounds(self, sample_dataframe):
-        """Test that marker sizes are within the defined bounds [6, 18]."""
+        """Test that marker sizes are within the defined bounds [6, 18].
+        
+        Note: Marker size is calculated as 60% of minimum tile dimension
+        (in data coordinates 0-1000), capped between 6 and 18. For typical
+        tiles of 30-200 pixels, this yields sizes of 6-18.
+        """
         fig = create_authentic_mondrian_map(
             sample_dataframe, "test_dataset", show_pathway_ids=False
         )
@@ -65,6 +70,7 @@ class TestDynamicMarkerSizing:
         
         for trace in marker_traces:
             marker_size = trace.marker.size
+            # Marker size is in data coordinates (0-1000 range), capped at [6, 18]
             assert 6 <= marker_size <= 18, \
                 f"Marker size {marker_size} outside bounds [6, 18]"
 
@@ -103,16 +109,15 @@ class TestDynamicMarkerSizing:
         assert marker_size <= 18, "Marker should not exceed maximum size"
 
     def test_marker_positioned_at_tile_center(self, sample_dataframe):
-        """Test that markers are positioned at tile centers."""
+        """Test that markers have valid coordinates within canvas bounds.
+        
+        Note: Full center alignment testing requires integration tests with
+        real pathway layout algorithm. This test verifies markers are created
+        with valid coordinates.
+        """
         fig = create_authentic_mondrian_map(
             sample_dataframe, "test_dataset", show_pathway_ids=False
         )
-        
-        # Get tile rectangles (filled shapes)
-        tile_traces = [
-            trace for trace in fig.data
-            if hasattr(trace, "fill") and trace.fill == "toself"
-        ]
         
         # Get markers
         marker_traces = [
@@ -123,28 +128,17 @@ class TestDynamicMarkerSizing:
             and trace.marker.opacity == 0
         ]
         
-        # Each tile should have a corresponding marker at its center
-        for tile in tile_traces:
-            if len(tile.x) >= 5:  # Rectangle has 5 points (closed)
-                # Calculate tile center
-                tile_center_x = (min(tile.x) + max(tile.x)) / 2
-                tile_center_y = (min(tile.y) + max(tile.y)) / 2
-                
-                # Find marker close to this center
-                found_marker = False
-                for marker in marker_traces:
-                    marker_x = marker.x[0] if len(marker.x) > 0 else None
-                    marker_y = marker.y[0] if len(marker.y) > 0 else None
-                    
-                    if marker_x is not None and marker_y is not None:
-                        # Allow small tolerance for floating point
-                        if abs(marker_x - tile_center_x) < 1 and abs(marker_y - tile_center_y) < 1:
-                            found_marker = True
-                            break
-                
-                # Note: In practice, markers and tiles might not align perfectly in test due to
-                # the way the data is processed, so we'll skip this assertion for now
-                # This would be better tested with integration tests
+        # Verify all markers have valid coordinates
+        for marker in marker_traces:
+            assert len(marker.x) > 0, "Marker should have x coordinate"
+            assert len(marker.y) > 0, "Marker should have y coordinate"
+            
+            marker_x = marker.x[0]
+            marker_y = marker.y[0]
+            
+            # Coordinates should be within canvas bounds
+            assert 0 <= marker_x <= 1000, f"Marker x={marker_x} out of bounds"
+            assert 0 <= marker_y <= 1000, f"Marker y={marker_y} out of bounds"
 
     def test_marker_customdata_preserved(self, sample_dataframe):
         """Test that marker traces preserve customdata for interactivity."""
@@ -164,14 +158,20 @@ class TestDynamicMarkerSizing:
             assert hasattr(trace, "customdata"), "Marker should have customdata"
             assert len(trace.customdata) > 0, "Customdata should not be empty"
             
-            # Check that customdata contains expected fields
-            if isinstance(trace.customdata[0], dict):
-                payload = trace.customdata[0]
-                assert "pathway_id" in payload or "name" in payload, \
-                    "Customdata should contain pathway information"
+            # Verify customdata structure: should be a list containing one dict
+            assert isinstance(trace.customdata[0], dict), \
+                f"customdata[0] should be dict, got {type(trace.customdata[0])}"
+            
+            payload = trace.customdata[0]
+            assert "pathway_id" in payload or "name" in payload, \
+                "Customdata should contain pathway information"
 
     def test_minimum_marker_size_enforced(self):
-        """Test that very small tiles still get minimum marker size."""
+        """Test that very small tiles still get minimum marker size.
+        
+        Even when tiles are very small (e.g., from downscaling or low wFC),
+        markers should be clamped to minimum size of 6 to remain usable.
+        """
         # Create a scenario that would result in very small tiles
         df_many_pathways = pd.DataFrame({
             "GS_ID": [f"WP{i:04d}" for i in range(100)],
@@ -197,7 +197,7 @@ class TestDynamicMarkerSizing:
             and trace.marker.opacity == 0
         ]
         
-        # All markers should have at least minimum size
+        # All markers should have at least minimum size (6 in data coordinates)
         for trace in marker_traces:
             marker_size = trace.marker.size
             assert marker_size >= 6, \

@@ -103,6 +103,29 @@ class TestSnapRectToGrid:
         assert y0 % 20 == 0, "y0 should be on grid"
         assert y1 % 20 == 0, "y1 should be on grid"
 
+    def test_snap_grid_alignment_vs_min_size_conflict(self):
+        """Test behavior when grid alignment and minimum size conflict.
+        
+        When minimum size enforcement expands a rectangle, it may produce
+        coordinates that are not grid-aligned. This test verifies that
+        minimum size takes precedence over grid alignment when both cannot
+        be satisfied simultaneously.
+        """
+        # Rectangle at edge where min size expansion would break grid alignment
+        rect = [(998.0, 500.0), (999.0, 520.0)]
+        snapped = snap_rect_to_grid(rect, grid=20, bounds=(0, 1000), min_size=20)
+        
+        (x0, y0), (x1, y1) = snapped
+        width = abs(x1 - x0)
+        height = abs(y1 - y0)
+        
+        # Minimum size MUST be satisfied (higher priority)
+        assert width >= 20, f"Width {width} violates minimum size constraint"
+        assert height >= 20, f"Height {height} violates minimum size constraint"
+        
+        # Note: When near bounds, min size enforcement may override grid alignment
+        # This is correct behavior - rectangles must remain visible
+
     def test_snap_custom_min_size(self):
         """Test that custom minimum size is respected."""
         rect = [(10.1, 10.1), (10.9, 10.9)]
