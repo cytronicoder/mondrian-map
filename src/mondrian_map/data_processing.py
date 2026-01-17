@@ -380,8 +380,20 @@ def normalize_coords_to_canvas(
     canvas_min: float = 0.0,
     canvas_max: float = 1000.0,
     pad: float = 20.0,
+    epsilon: float = 1e-9,
 ) -> np.ndarray:
-    """Normalize coordinates to canvas bounds with padding."""
+    """Normalize coordinates to canvas bounds with padding.
+
+    Args:
+        coords: Input coordinates as (n, 2) array
+        canvas_min: Minimum canvas coordinate
+        canvas_max: Maximum canvas coordinate
+        pad: Padding from canvas edges
+        epsilon: Minimum span threshold to prevent numerical instability
+
+    Returns:
+        Normalized coordinates within canvas bounds
+    """
     coords = np.asarray(coords, dtype=float)
     if coords.ndim != 2 or coords.shape[1] != 2:
         raise ValueError("coords must be a 2D array with shape (n, 2)")
@@ -391,14 +403,15 @@ def normalize_coords_to_canvas(
     span = max_vals - min_vals
     target_min = canvas_min + pad
     target_max = canvas_max - pad
-    target_span = max(target_max - target_min, 1e-9)
+    target_span = max(target_max - target_min, epsilon)
 
     normalized = np.zeros_like(coords)
     for i in range(2):
-        if span[i] == 0:
+        # Use epsilon for numerical stability with very small spans
+        if span[i] < epsilon:
             normalized[:, i] = (target_min + target_max) / 2.0
         else:
-            normalized[:, i] = (
-                (coords[:, i] - min_vals[i]) / span[i] * target_span + target_min
-            )
+            normalized[:, i] = (coords[:, i] - min_vals[i]) / span[
+                i
+            ] * target_span + target_min
     return normalized

@@ -24,9 +24,11 @@ adjust_e = adjust + 1
 adjust_d = adjust_e - adjust
 AREA_SCALAR = 4000
 
-# Thresholds for regulation classification
+# Thresholds for regulation classification in visualization/tile coloring
+# Note: These differ from DEG calling thresholds (1.5/0.5 in degs.py)
+# to provide more nuanced visual representation in Mondrian maps
 up_th = 1.25
-dn_th = abs(1 - (up_th - 1))
+dn_th = abs(1 - (up_th - 1))  # 0.75
 
 
 def rect_intersects(r1, r2, padding: float = 0.0) -> bool:

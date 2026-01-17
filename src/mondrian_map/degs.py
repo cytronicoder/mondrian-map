@@ -13,7 +13,9 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Default thresholds
+# Default thresholds for DEG calling
+# Note: These differ from visualization thresholds in core.py (1.25/0.75)
+# which are used for tile coloring in Mondrian maps
 DEFAULT_UP_THRESHOLD = 1.5
 DEFAULT_DOWN_THRESHOLD = 0.5  # abs(1 - (1.5 - 1))
 DEFAULT_PSEUDOCOUNT = 1e-6
@@ -25,7 +27,11 @@ def compute_fold_change(
     min_value: float,
 ) -> pd.Series:
     """
-    Compute fold change with flooring applied to numerator and denominator.
+    Compute fold change ratio with flooring applied to numerator and denominator.
+
+    This is the low-level function used by compute_profile_degs() and other
+    internal functions. For DataFrame-based fold change computation with more
+    options, use compute_fold_change_from_df().
 
     Args:
         numerator: Numerator expression series
@@ -34,6 +40,9 @@ def compute_fold_change(
 
     Returns:
         Series of fold change ratios
+
+    See Also:
+        compute_fold_change_from_df: DataFrame-based fold change computation
     """
     numerator = numerator.astype(float).clip(lower=min_value)
     denominator = denominator.astype(float).clip(lower=min_value)
@@ -50,6 +59,24 @@ def compute_fold_change_from_df(
 ) -> pd.Series:
     """
     Compute fold change between two conditions from a DataFrame.
+
+    This is a higher-level function that works with DataFrames and provides
+    additional options like method selection and log transformation. For
+    simple Series-based fold change computation, see compute_fold_change().
+
+    Args:
+        expression_df: DataFrame with expression values
+        numerator_col: Column name for numerator condition
+        denominator_col: Column name for denominator condition
+        method: "ratio" for FC or "log2" for log2(FC)
+        pseudocount: Small value added to prevent division by zero
+        log_transform: If True, apply log2 transform to ratio (ignored if method="log2")
+
+    Returns:
+        Series of fold change values indexed by genes
+
+    See Also:
+        compute_fold_change: Low-level Series-based fold change computation
     """
     if numerator_col not in expression_df.columns:
         raise ValueError(f"Numerator column '{numerator_col}' not found")

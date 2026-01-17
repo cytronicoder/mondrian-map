@@ -19,16 +19,9 @@ import numpy as np
 import pandas as pd
 
 from .config import PipelineConfig, get_gbm_case_study_config
-from .io import (
-    ensure_directory,
-    load_embeddings,
-    load_glass_inputs,
-    load_pathway_info,
-    save_embeddings,
-    save_entities,
-    save_manifest,
-    save_relations,
-)
+from .io import (ensure_directory, load_embeddings, load_glass_inputs,
+                 load_pathway_info, save_embeddings, save_entities,
+                 save_manifest, save_relations)
 
 logger = logging.getLogger(__name__)
 
@@ -675,12 +668,31 @@ def reproduce_case_study(
     return pipeline.run()
 
 
+# Visualization thresholds for tile coloring in Mondrian maps
+# These differ from DEG calling thresholds (1.5/0.5 in degs.py) to provide
+# more nuanced visual representation in the visualization
+VIZ_UP_THRESHOLD = 1.25
+VIZ_DOWN_THRESHOLD = 0.75
+
+
 def _tile_color(wfc: float, pfdr: float) -> str:
+    """Determine tile color based on fold change and significance.
+
+    Uses visualization thresholds (1.25/0.75) which differ from DEG calling
+    thresholds (1.5/0.5) to provide finer-grained visual distinction.
+
+    Args:
+        wfc: Weighted fold change value
+        pfdr: Adjusted p-value (FDR)
+
+    Returns:
+        Color string: "red" (up), "blue" (down), "yellow" (neutral), "black" (n.s.)
+    """
     if pfdr >= 0.05:
         return "black"
-    if wfc >= 1.25:
+    if wfc >= VIZ_UP_THRESHOLD:
         return "red"
-    if wfc <= 0.75:
+    if wfc <= VIZ_DOWN_THRESHOLD:
         return "blue"
     return "yellow"
 
@@ -709,11 +721,9 @@ def run_case_study(
     force: bool = False,
 ) -> None:
     """Run the full paper-aligned case study pipeline."""
-    from .data_processing import (
-        build_profile_expression,
-        filter_genes_by_expression_threshold,
-        normalize_coords_to_canvas,
-    )
+    from .data_processing import (build_profile_expression,
+                                  filter_genes_by_expression_threshold,
+                                  normalize_coords_to_canvas)
     from .degs import compute_fold_change, compute_profile_degs
     from .embeddings import embed_pathways
     from .pager_client import PagerClient
@@ -843,7 +853,9 @@ def run_case_study(
 
             rp_scores_map = pager_client.extract_rp_scores(pag_df)
 
-            numerator = profile_expr["R1"] if contrast == "R1_vs_TP" else profile_expr["R2"]
+            numerator = (
+                profile_expr["R1"] if contrast == "R1_vs_TP" else profile_expr["R2"]
+            )
             fc_by_gene = compute_fold_change(
                 numerator,
                 profile_expr["TP"],
@@ -885,8 +897,7 @@ def run_case_study(
 
             rp_gene_order = {
                 pag_id: [
-                    gene
-                    for gene, _ in sorted(scores.items(), key=lambda x: -x[1])
+                    gene for gene, _ in sorted(scores.items(), key=lambda x: -x[1])
                 ]
                 for pag_id, scores in rp_scores_map.items()
             }
@@ -949,19 +960,19 @@ def run_case_study(
                     relations["GS_ID_A"].isin(attributes["GS_ID"])
                     & relations["GS_ID_B"].isin(attributes["GS_ID"])
                 ]
-                color_map = dict(
-                    zip(attributes["GS_ID"], attributes["tile_color"])
-                )
+                color_map = dict(zip(attributes["GS_ID"], attributes["tile_color"]))
                 relations["relation_type"] = "m"
                 relations["line_color"] = relations.apply(
-                    lambda row: "red"
-                    if color_map.get(row["GS_ID_A"]) == "red"
-                    and color_map.get(row["GS_ID_B"]) == "red"
-                    else (
-                        "blue"
-                        if color_map.get(row["GS_ID_A"]) == "blue"
-                        and color_map.get(row["GS_ID_B"]) == "blue"
-                        else "yellow"
+                    lambda row: (
+                        "red"
+                        if color_map.get(row["GS_ID_A"]) == "red"
+                        and color_map.get(row["GS_ID_B"]) == "red"
+                        else (
+                            "blue"
+                            if color_map.get(row["GS_ID_A"]) == "blue"
+                            and color_map.get(row["GS_ID_B"]) == "blue"
+                            else "yellow"
+                        )
                     ),
                     axis=1,
                 )
@@ -984,8 +995,16 @@ def run_case_study(
     with (out_path / "run_metadata.json").open("w") as f:
         json.dump(metadata, f, indent=2)
 
-    panel_dfs = [panel_map[(contrast, profile)] for contrast in contrast_order for profile in profile_order]
-    panel_names = [panel_name_map[(contrast, profile)] for contrast in contrast_order for profile in profile_order]
+    panel_dfs = [
+        panel_map[(contrast, profile)]
+        for contrast in contrast_order
+        for profile in profile_order
+    ]
+    panel_names = [
+        panel_name_map[(contrast, profile)]
+        for contrast in contrast_order
+        for profile in profile_order
+    ]
 
     fig = create_canvas_grid(
         panel_dfs,
