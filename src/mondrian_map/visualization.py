@@ -952,7 +952,7 @@ def create_authentic_mondrian_map(
         ]
 
         pathway_row = suffix_to_row.get(block.id)
-        row = pathway_row or {}
+        row = pathway_row if pathway_row is not None else {}
         payload = {
             "name": row.get("NAME", ""),
             "pathway_id": row.get("GS_ID", ""),
