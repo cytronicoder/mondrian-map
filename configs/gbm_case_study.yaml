@@ -1,0 +1,167 @@
+# GBM Case Study Configuration for Mondrian Map
+# Exact parameters used to generate Figures 1-2 in the paper
+
+# Output directory
+output_dir: outputs/gbm
+
+# Data directory (for cached runs)
+data_dir: data/case_study
+
+# Precomputed artifacts cache
+cache_dir: cache
+
+# Caching
+use_cache: true
+
+# Random seed for reproducibility
+random_seed: 42
+
+# Logging
+verbose: true
+debug: false
+
+# Version
+version: "1.0.0"
+
+# Case study specific settings
+case_study:
+  name: gbm
+  description: "GBM Temporal Gene Expression Case Study"
+  
+  # Patient groupings
+  baseline_patient_ids:
+    - "5965"
+    - "F922"
+    - "A7RK"
+    - "R064"
+  aggressive_patient_ids:
+    - "0279"
+  nonaggressive_patient_ids:
+    - "0027"
+  
+  # Timepoint comparisons
+  timepoint_pairs:
+    - ["R1", "TP"]
+    - ["R2", "TP"]
+  
+  # Top N pathways to visualize
+  top_n_pathways: 10
+
+# DEG Selection thresholds
+thresholds:
+  # Fold change thresholds for DEG selection
+  up_regulation_threshold: 1.5    # genes with FC >= 1.5 are up-regulated
+  down_regulation_threshold: 0.5  # genes with FC <= 0.5 are down-regulated
+  
+  # Expression filter (minimum TPM)
+  expression_min_value: 1.0
+  
+  # Significance thresholds
+  significance_threshold: 0.05
+  fdr_threshold: 0.5
+  
+  # Color thresholds
+  color_up_threshold: 1.25
+  color_down_threshold: 0.75
+
+# PAGER API configuration
+pager:
+  source: "WikiPathway_2021"
+  pag_type: "P"
+  organism: "All"
+  
+  # Size filters
+  min_size: 1
+  max_size: 2000
+  
+  # Similarity and overlap
+  similarity: 0.05
+  overlap: 1
+  ncoco: 0
+  
+  # Significance
+  pvalue: 0.05
+  fdr: 0.5
+  
+  # Rate limiting
+  rate_limit: 1.0
+  max_retries: 3
+  retry_delay: 5.0
+  
+  # Caching
+  use_cache: true
+  cache_dir: "cache/pager"
+
+# Embedding configuration
+embedding:
+  # Model selection
+  model_name: all-mpnet-base-v2  # SentenceTransformer model
+  model_type: sentence_transformer  # or llm2vec
+  
+  # Prompt settings
+  prompt_type: pathway_description_summary
+  max_genes: 100
+  
+  # Encoding settings
+  batch_size: 32
+  normalize: true
+  max_length: 512
+  
+  # LLM2Vec specific
+  llm2vec_model: "McGill-NLP/LLM2Vec-Meta-Llama-3-8B-Instruct-mntp"
+  llm2vec_postfix: supervised
+  pooling_mode: mean
+  
+  # Device
+  device: null  # null = auto-detect
+  
+  # Caching
+  cache_dir: "cache/embeddings"
+
+# t-SNE projection configuration
+tsne:
+  perplexity: 30.0
+  learning_rate: 200.0
+  n_iter: 1000
+  metric: euclidean
+  random_state: 42  # Must match random_seed for reproducibility
+  init: pca
+  
+  # Normalization
+  normalize_coords: true
+  canvas_size: 1000.0
+  range_min: 0.05
+  range_max: 0.95
+  
+  # Caching
+  cache_dir: "cache/tsne"
+
+# Visualization configuration
+visualization:
+  # Canvas settings
+  width: 1000
+  height: 1000
+  block_width: 100
+  block_height: 100
+  
+  # Display settings
+  show_ids: false
+  id_format: last4  # last4, full, or name
+  show_hover: true
+  maximize: false
+  
+  # Relations/edges
+  max_relations_per_node: 2  # null = unlimited
+  show_relations: true
+  
+  # Area scaling
+  area_scalar: 4000
+  
+  # Line widths
+  line_width: 5
+  thin_line_width: 1
+  
+  # Output formats
+  output_format: html  # html, png, svg, pdf
+
+
