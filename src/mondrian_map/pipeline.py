@@ -691,7 +691,11 @@ def _tile_area(
     min_area: float = 400.0,
     max_area: float = 20000.0,
 ) -> float:
+    # Clamp to a small positive value to avoid log2(0) while preserving magnitude.
     safe_wfc = max(float(wfc), 1e-6)
+    # Use the magnitude of the log2 fold change so that both increases (wfc > 1)
+    # and decreases (wfc < 1) scale area by how large the change is. In
+    # particular, fold changes less than 1.0 are also scaled by their magnitude.
     area = abs(np.log2(safe_wfc)) * scalar
     return float(np.clip(area, min_area, max_area))
 
