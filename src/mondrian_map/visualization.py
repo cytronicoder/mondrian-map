@@ -13,10 +13,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from .core import (LINE_WIDTH, THIN_LINE_WIDTH, Block, Colors, Corner,
-                   CornerPos, GridSystem, Line, LineDir, Point, adjust,
-                   adjust_d, blank_canvas, euclidean_distance_point,
-                   get_line_direction)
+from .core import (LINE_WIDTH, Block, Colors, Corner, CornerPos, GridSystem,
+                   Line, LineDir, Point, adjust, adjust_d, blank_canvas,
+                   euclidean_distance_point, get_line_direction)
 from .data_processing import prepare_pathway_data
 
 
@@ -338,206 +337,360 @@ def get_manhattan_lines_2(
 
 def create_smart_grid_lines(grid_system: GridSystem, blocks: List[Block]) -> List[Line]:
     """
-    Two-step grid line algorithm:
-    1. Create full Manhattan grid
-    2. Remove lines that go canvas edge to edge without hitting tile corners
-    3. Trim line segments that cross tile middles, stopping at tile corners
+    Legacy smart grid line generation.
+
+    NOTE: This is retained for backward compatibility but is no longer used by the
+    paper-style visualization, which instead renders sparse partition lines via shapes.
     """
-    smart_lines = []
+    return []
 
-    # Get all tile corner positions
-    tile_corners = set()
+
+def _quantize_positions(
+    values: List[float], step: float, epsilon: float = 1.0
+) -> List[float]:
+    """Quantize and merge near-duplicate positions to stabilize sparse partitions."""
+    quantized = [round(value / step) * step for value in values]
+    quantized.sort()
+    merged = []
+    for value in quantized:
+        if not merged or abs(value - merged[-1]) > epsilon:
+            merged.append(value)
+    return merged
+
+
+def create_partition_line_shapes(
+    blocks: List[Block],
+    grid_step: float,
+    max_lines: int,
+    color: str,
+    width: int,
+    canvas_size: int = 1000,
+) -> List[Dict]:
+    """
+    Create sparse, structural partition lines from tile edges.
+
+    The filtering strategy keeps only coordinates that appear on multiple tile edges
+    and then down-samples to the top-N most frequent positions to avoid a dense lattice.
+    """
+    edge_x = []
+    edge_y = []
     for block in blocks:
-        tile_corners.add((block.top_left_p[0], block.top_left_p[1]))  # top-left
-        tile_corners.add((block.bottom_right_p[0], block.top_left_p[1]))  # top-right
-        tile_corners.add((block.top_left_p[0], block.bottom_right_p[1]))  # bottom-left
-        tile_corners.add(
-            (block.bottom_right_p[0], block.bottom_right_p[1])
-        )  # bottom-right
+        edge_x.extend([block.top_left_p[0], block.bottom_right_p[0]])
+        edge_y.extend([block.top_left_p[1], block.bottom_right_p[1]])
 
-    # Get all unique x and y positions from corners
-    x_positions = set(corner[0] for corner in tile_corners)
-    y_positions = set(corner[1] for corner in tile_corners)
+    quantized_x = _quantize_positions(edge_x, grid_step)
+    quantized_y = _quantize_positions(edge_y, grid_step)
 
-    # STEP 1: Create full Manhattan grid lines
-    full_grid_lines = []
+    freq_x: Dict[float, int] = {}
+    freq_y: Dict[float, int] = {}
+    for value in edge_x:
+        q = round(value / grid_step) * grid_step
+        freq_x[q] = freq_x.get(q, 0) + 1
+    for value in edge_y:
+        q = round(value / grid_step) * grid_step
+        freq_y[q] = freq_y.get(q, 0) + 1
 
-    # Create full vertical lines
-    for x_pos in x_positions:
-        if 0 < x_pos < 1000:  # Skip canvas boundaries
-            full_grid_lines.append(
-                {"type": "vertical", "position": x_pos, "start": 0, "end": 1000}
+    candidates_x = [x for x in quantized_x if freq_x.get(x, 0) >= 2]
+    candidates_y = [y for y in quantized_y if freq_y.get(y, 0) >= 2]
+
+    ranked_x = sorted(candidates_x, key=lambda x: freq_x.get(x, 0), reverse=True)
+    ranked_y = sorted(candidates_y, key=lambda y: freq_y.get(y, 0), reverse=True)
+
+    total_candidates = [("x", value) for value in ranked_x] + [
+        ("y", value) for value in ranked_y
+    ]
+    if max_lines > 0:
+        total_candidates = total_candidates[:max_lines]
+
+    shapes = []
+    for axis, value in total_candidates:
+        if value <= 0 or value >= canvas_size:
+            continue
+        if axis == "x":
+            shapes.append(
+                dict(
+                    type="line",
+                    x0=value,
+                    x1=value,
+                    y0=0,
+                    y1=canvas_size,
+                    line=dict(color=color, width=width),
+                    layer="below",
+                )
+            )
+        else:
+            shapes.append(
+                dict(
+                    type="line",
+                    x0=0,
+                    x1=canvas_size,
+                    y0=value,
+                    y1=value,
+                    line=dict(color=color, width=width),
+                    layer="below",
+                )
             )
 
-    # Create full horizontal lines
-    for y_pos in y_positions:
-        if 0 < y_pos < 1000:  # Skip canvas boundaries
-            full_grid_lines.append(
-                {"type": "horizontal", "position": y_pos, "start": 0, "end": 1000}
-            )
+    return shapes
 
-    # STEP 2: Remove lines that go canvas edge to edge without hitting tile corners
-    valid_lines = []
-    for line in full_grid_lines:
-        hits_corner = False
 
-        if line["type"] == "vertical":
-            x_pos = line["position"]
-            # Check if this vertical line hits any tile corner
-            for corner_x, corner_y in tile_corners:
-                if corner_x == x_pos:
-                    hits_corner = True
-                    break
-        else:  # horizontal
-            y_pos = line["position"]
-            # Check if this horizontal line hits any tile corner
-            for corner_x, corner_y in tile_corners:
-                if corner_y == y_pos:
-                    hits_corner = True
-                    break
+def _normalize_color_name(color_value: str) -> str:
+    """Normalize color strings/hex values to red/blue/yellow/black labels."""
+    normalized = str(color_value).lower()
+    # Map hex values to color names
+    color_map = {
+        Colors.RED.value.lower(): "red",
+        Colors.BLUE.value.lower(): "blue",
+        Colors.YELLOW.value.lower(): "yellow",
+        Colors.BLACK.value.lower(): "black",
+    }
+    return color_map.get(normalized, normalized)
 
-        if hits_corner:
-            valid_lines.append(line)
 
-    # STEP 3: Create line segments from canvas edge to tile borders (stop at first tile encounter)
-    for line in valid_lines:
-        if line["type"] == "vertical":
-            x_pos = line["position"]
+def _get_block_bounds(block: Block) -> Dict[str, float]:
+    return {
+        "left": block.top_left_p[0],
+        "right": block.bottom_right_p[0],
+        "top": block.top_left_p[1],
+        "bottom": block.bottom_right_p[1],
+    }
 
-            # Find all tile boundaries that this vertical line would encounter
-            tile_boundaries = []
-            for block in blocks:
-                if block.top_left_p[0] <= x_pos <= block.bottom_right_p[0]:
-                    tile_boundaries.append(
-                        (block.top_left_p[1], block.bottom_right_p[1], "tile")
+
+def _get_block_center(block: Block) -> Tuple[float, float]:
+    return (
+        (block.top_left_p[0] + block.bottom_right_p[0]) / 2,
+        (block.top_left_p[1] + block.bottom_right_p[1]) / 2,
+    )
+
+
+def _block_ports(
+    block: Block, target_center: Tuple[float, float]
+) -> List[Tuple[float, float]]:
+    """Return candidate ports on block edges ordered by preferred routing direction."""
+    left = block.top_left_p[0]
+    right = block.bottom_right_p[0]
+    top = block.top_left_p[1]
+    bottom = block.bottom_right_p[1]
+    cx, cy = _get_block_center(block)
+    tx, ty = target_center
+
+    ports = {
+        "left": (max(0, left - 3), cy),
+        "right": (min(1000, right + 3), cy),
+        "top": (cx, max(0, top - 3)),
+        "bottom": (cx, min(1000, bottom + 3)),
+    }
+
+    dx = tx - cx
+    dy = ty - cy
+    if abs(dx) >= abs(dy):
+        primary = "right" if dx >= 0 else "left"
+        secondary = ["top", "bottom"]
+        # Determine the opposite horizontal direction
+        tertiary = "left" if primary == "right" else "right"
+        ordered_keys = [primary] + secondary + [tertiary]
+    else:
+        primary = "bottom" if dy >= 0 else "top"
+        secondary = ["left", "right"]
+        # Determine the opposite vertical direction
+        tertiary = "top" if primary == "bottom" else "bottom"
+        ordered_keys = [primary] + secondary + [tertiary]
+
+    return [ports[key] for key in ordered_keys]
+
+
+def _segment_intersects_rect(
+    a: Tuple[float, float],
+    b: Tuple[float, float],
+    rect: Dict[str, float],
+    epsilon: float = 1e-6,
+) -> bool:
+    """Check if an axis-aligned segment crosses a rectangle interior."""
+    left = rect["left"] + epsilon
+    right = rect["right"] - epsilon
+    top = rect["top"] + epsilon
+    bottom = rect["bottom"] - epsilon
+
+    if a[0] == b[0]:  # vertical
+        x = a[0]
+        if not (left < x < right):
+            return False
+        seg_top = min(a[1], b[1])
+        seg_bottom = max(a[1], b[1])
+        return seg_bottom > top and seg_top < bottom
+    if a[1] == b[1]:  # horizontal
+        y = a[1]
+        if not (top < y < bottom):
+            return False
+        seg_left = min(a[0], b[0])
+        seg_right = max(a[0], b[0])
+        return seg_right > left and seg_left < right
+    return True
+
+
+def _path_hits_obstacles(
+    path: List[Tuple[float, float]],
+    obstacles: List[Dict[str, float]],
+    ignore_rects: List[Dict[str, float]],
+) -> bool:
+    """Return True if any segment intersects obstacle interiors (excluding endpoints)."""
+    # Convert ignore_rects to set of tuples for proper comparison
+    ignore_set = {
+        (rect["left"], rect["right"], rect["top"], rect["bottom"])
+        for rect in ignore_rects
+    }
+
+    for i in range(len(path) - 1):
+        a = path[i]
+        b = path[i + 1]
+        for rect in obstacles:
+            # Check if this rect should be ignored using content comparison
+            rect_tuple = (rect["left"], rect["right"], rect["top"], rect["bottom"])
+            if rect_tuple in ignore_set:
+                continue
+            if _segment_intersects_rect(a, b, rect):
+                return True
+    return False
+
+
+def _simplify_path(
+    path: List[Tuple[float, float]], epsilon: float = 1e-6
+) -> List[Tuple[float, float]]:
+    """Remove duplicate consecutive points within epsilon threshold."""
+    simplified = []
+    for point in path:
+        if not simplified or (
+            abs(point[0] - simplified[-1][0]) > epsilon
+            or abs(point[1] - simplified[-1][1]) > epsilon
+        ):
+            simplified.append(point)
+    return simplified
+
+
+def route_manhattan(
+    src: Block,
+    dst: Block,
+    obstacles: List[Dict[str, float]],
+    grid_step: float,
+    canvas_size: int = 1000,
+) -> List[Tuple[float, float]]:
+    """Route orthogonal segments while avoiding tile interiors via offset bend search."""
+    src_center = _get_block_center(src)
+    dst_center = _get_block_center(dst)
+    src_ports = _block_ports(src, dst_center)
+    dst_ports = _block_ports(dst, src_center)
+
+    src_rect = _get_block_bounds(src)
+    dst_rect = _get_block_bounds(dst)
+    ignore_rects = [src_rect, dst_rect]
+
+    offsets = [0, grid_step, -grid_step, 2 * grid_step, -2 * grid_step]
+
+    for src_port in src_ports:
+        for dst_port in dst_ports:
+            sx, sy = src_port
+            dx, dy = dst_port
+
+            for offset in offsets:
+                # Candidate A: horizontal then vertical (offset y to avoid obstacles).
+                mid_y = sy + offset
+                if 0 <= mid_y <= canvas_size:
+                    candidate = (
+                        [(sx, sy), (dx, sy), (dx, dy)]
+                        if offset == 0
+                        else [(sx, sy), (sx, mid_y), (dx, mid_y), (dx, dy)]
                     )
+                    candidate = _simplify_path(candidate)
+                    if not _path_hits_obstacles(candidate, obstacles, ignore_rects):
+                        return candidate
 
-            # Sort boundaries by y position
-            tile_boundaries.sort()
-
-            # Create line from top canvas edge to first tile boundary
-            if tile_boundaries:
-                first_tile_top = tile_boundaries[0][0]
-                if first_tile_top > 0:
-                    smart_lines.append(
-                        Line(
-                            Point(x_pos, 0),
-                            Point(x_pos, first_tile_top),
-                            LineDir.DOWN,
-                            Colors.LIGHT_GRAY,
-                            1,
-                        )
+                # Candidate B: vertical then horizontal (offset x to avoid obstacles).
+                mid_x = sx + offset
+                if 0 <= mid_x <= canvas_size:
+                    candidate = (
+                        [(sx, sy), (sx, dy), (dx, dy)]
+                        if offset == 0
+                        else [(sx, sy), (mid_x, sy), (mid_x, dy), (dx, dy)]
                     )
+                    candidate = _simplify_path(candidate)
+                    if not _path_hits_obstacles(candidate, obstacles, ignore_rects):
+                        return candidate
 
-                # Create lines between tiles (in gaps)
-                for i in range(len(tile_boundaries) - 1):
-                    gap_start = tile_boundaries[i][1]  # End of current tile
-                    gap_end = tile_boundaries[i + 1][0]  # Start of next tile
+    return []
 
-                    if gap_end - gap_start > 10:  # Minimum gap size
-                        smart_lines.append(
-                            Line(
-                                Point(x_pos, gap_start),
-                                Point(x_pos, gap_end),
-                                LineDir.DOWN,
-                                Colors.LIGHT_GRAY,
-                                1,
-                            )
-                        )
 
-                # Create line from last tile boundary to bottom canvas edge
-                last_tile_bottom = tile_boundaries[-1][1]
-                if last_tile_bottom < 1000:
-                    smart_lines.append(
-                        Line(
-                            Point(x_pos, last_tile_bottom),
-                            Point(x_pos, 1000),
-                            LineDir.DOWN,
-                            Colors.LIGHT_GRAY,
-                            1,
-                        )
-                    )
-            else:
-                # No tiles intersect this line, draw full line
-                smart_lines.append(
-                    Line(
-                        Point(x_pos, 0),
-                        Point(x_pos, 1000),
-                        LineDir.DOWN,
-                        Colors.LIGHT_GRAY,
-                        1,
-                    )
-                )
-
-        else:  # horizontal line
-            y_pos = line["position"]
-
-            # Find all tile boundaries that this horizontal line would encounter
-            tile_boundaries = []
-            for block in blocks:
-                if block.top_left_p[1] <= y_pos <= block.bottom_right_p[1]:
-                    tile_boundaries.append(
-                        (block.top_left_p[0], block.bottom_right_p[0], "tile")
-                    )
-
-            # Sort boundaries by x position
-            tile_boundaries.sort()
-
-            # Create line from left canvas edge to first tile boundary
-            if tile_boundaries:
-                first_tile_left = tile_boundaries[0][0]
-                if first_tile_left > 0:
-                    smart_lines.append(
-                        Line(
-                            Point(0, y_pos),
-                            Point(first_tile_left, y_pos),
-                            LineDir.RIGHT,
-                            Colors.LIGHT_GRAY,
-                            1,
-                        )
-                    )
-
-                # Create lines between tiles (in gaps)
-                for i in range(len(tile_boundaries) - 1):
-                    gap_start = tile_boundaries[i][1]  # End of current tile
-                    gap_end = tile_boundaries[i + 1][0]  # Start of next tile
-
-                    if gap_end - gap_start > 10:  # Minimum gap size
-                        smart_lines.append(
-                            Line(
-                                Point(gap_start, y_pos),
-                                Point(gap_end, y_pos),
-                                LineDir.RIGHT,
-                                Colors.LIGHT_GRAY,
-                                1,
-                            )
-                        )
-
-                # Create line from last tile boundary to right canvas edge
-                last_tile_right = tile_boundaries[-1][1]
-                if last_tile_right < 1000:
-                    smart_lines.append(
-                        Line(
-                            Point(last_tile_right, y_pos),
-                            Point(1000, y_pos),
-                            LineDir.RIGHT,
-                            Colors.LIGHT_GRAY,
-                            1,
-                        )
-                    )
-            else:
-                # No tiles intersect this line, draw full line
-                smart_lines.append(
-                    Line(
-                        Point(0, y_pos),
-                        Point(1000, y_pos),
-                        LineDir.RIGHT,
-                        Colors.LIGHT_GRAY,
-                        1,
-                    )
-                )
-
-    return smart_lines
+def add_paper_style_legend(fig: go.Figure, no_relations_color: str) -> None:
+    """Add right-side legend entries matching the paper-style figure."""
+    fig.add_trace(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(size=12, color=Colors.RED.value, symbol="square"),
+            name="Up-regulated pathways (p < 0.05)",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(size=12, color=Colors.BLUE.value, symbol="square"),
+            name="Down-regulated pathways (p < 0.05)",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(size=12, color=Colors.YELLOW.value, symbol="square"),
+            name="Neutrally perturbed pathways (p < 0.05)",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None, None],
+            y=[None, None],
+            mode="lines",
+            line=dict(color=Colors.RED.value, width=3),
+            name="crosstalk linking two up-regulated pathways",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None, None],
+            y=[None, None],
+            mode="lines",
+            line=dict(color=Colors.BLUE.value, width=3),
+            name="crosstalk linking two down-regulated pathways",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None, None],
+            y=[None, None],
+            mode="lines",
+            line=dict(color=Colors.YELLOW.value, width=3),
+            name="crosstalk linking different perturbed pathways",
+            showlegend=True,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None, None],
+            y=[None, None],
+            mode="lines",
+            line=dict(color=no_relations_color, width=3, dash="solid"),
+            name="No Relations",
+            showlegend=True,
+        )
+    )
 
 
 def get_meaningful_tile_edges(blocks: List[Block]) -> Dict:
@@ -784,6 +937,17 @@ def create_authentic_mondrian_map(
     mem_df: Optional[pd.DataFrame] = None,
     maximize: bool = False,
     show_pathway_ids: bool = True,
+    show_partitions: bool = True,
+    partition_max_lines: int = 20,
+    partition_color: str = "#D0D0D0",
+    partition_width: int = 2,
+    show_insignificant_edges: bool = False,
+    no_relations_color: str = "#CDB4DB",
+    edge_top_k: int = 2,
+    edge_max_total: int = 30,
+    show_legend: bool = True,
+    tile_area_scale: float = 0.97,
+    label_min_side: float = 30.0,  # Default matches original threshold for backward compatibility
 ) -> go.Figure:
     """
     Create authentic Mondrian map using the exact algorithm from the notebooks
@@ -796,10 +960,11 @@ def create_authentic_mondrian_map(
     data = prepare_pathway_data(df, dataset_name, network_dir)
 
     center_points = data["center_points"]
-    areas = data["areas"]
+    areas = [area * tile_area_scale for area in data["areas"]]
     colors = data["colors"]
     pathway_ids = data["pathway_ids"]
     relations = data["relations"]
+    network_data = data.get("network_data")
     suffix_to_row: Dict[str, pd.Series] = {}
     # Build suffix-to-row mapping for pathway data lookup
     # Note: Duplicate GS_IDs (same ID appearing multiple times) will use the last occurrence
@@ -839,12 +1004,6 @@ def create_authentic_mondrian_map(
         nudge=True,
     )
 
-    # Create border lines
-    Line(Point(0, 0), Point(1000, 0), LineDir.RIGHT, Colors.GRAY, THIN_LINE_WIDTH)
-    Line(Point(1000, 0), Point(1000, 1000), LineDir.DOWN, Colors.GRAY, THIN_LINE_WIDTH)
-    Line(Point(1000, 1000), Point(0, 1000), LineDir.LEFT, Colors.GRAY, THIN_LINE_WIDTH)
-    Line(Point(0, 1000), Point(0, 0), LineDir.UP, Colors.GRAY, THIN_LINE_WIDTH)
-
     # STAGE 1: Create blocks
     all_blocks = []
     for idx, rect in enumerate(rectangles):
@@ -857,75 +1016,96 @@ def create_authentic_mondrian_map(
         )
         all_blocks.append(b)
 
-    # Create smart grid lines that avoid intersecting tiles (after blocks are created)
-    smart_grid_lines = create_smart_grid_lines(grid_system, all_blocks)
-
     # STAGE 2: Create relationship lines (Manhattan lines for PAG-to-PAG crosstalk)
-    all_manhattan_lines = []
-    lines_to_extend = []
+    all_manhattan_paths: List[Tuple[List[Tuple[float, float]], str]] = []
+    edge_strengths: Dict[Tuple[str, str], float] = {}
+    if isinstance(network_data, pd.DataFrame) and len(network_data) > 0:
+        for _, row in network_data.iterrows():
+            gs_a = str(row["GS_A_ID"])[-4:]
+            gs_b = str(row["GS_B_ID"])[-4:]
+            key = tuple(sorted((gs_a, gs_b)))
+            if "PVALUE" in row:
+                # Use -log(p) so smaller p-values (more significant) get higher scores
+                pval = float(row["PVALUE"])
+                score = -np.log(max(pval, 1e-300))  # Avoid log(0)
+            elif "SIMILARITY" in row:
+                score = float(row["SIMILARITY"])
+            else:
+                score = 0.0
+            if key not in edge_strengths or score > edge_strengths[key]:
+                edge_strengths[key] = score
+
+    obstacles = [_get_block_bounds(block) for block in all_blocks]
+
+    sorted_edges = []
     for rel in relations:
-        if rel[0] in Block.instances.keys() and rel[1] in Block.instances.keys():
-            s = Block.instances[rel[0]]
-            b = Block.instances[rel[1]]
+        if rel[0] not in Block.instances or rel[1] not in Block.instances:
+            continue
+        key = tuple(sorted(rel))
+        sorted_edges.append((rel[0], rel[1], edge_strengths.get(key, 0.0)))
+
+    sorted_edges.sort(key=lambda item: item[2], reverse=True)
+
+    edge_counts: Dict[str, int] = {}
+    selected_edges = []
+    for source_id, target_id, score in sorted_edges:
+        if edge_counts.get(source_id, 0) >= edge_top_k:
+            continue
+        if edge_counts.get(target_id, 0) >= edge_top_k:
+            continue
+        selected_edges.append((source_id, target_id, score))
+        edge_counts[source_id] = edge_counts.get(source_id, 0) + 1
+        edge_counts[target_id] = edge_counts.get(target_id, 0) + 1
+        if len(selected_edges) >= edge_max_total:
+            break
+
+    for source_id, target_id, _ in selected_edges:
+        s = Block.instances[source_id]
+        b = Block.instances[target_id]
+        s_color = _normalize_color_name(
+            s.color.value if hasattr(s.color, "value") else str(s.color)
+        )
+        b_color = _normalize_color_name(
+            b.color.value if hasattr(b.color, "value") else str(b.color)
+        )
+
+        # Determine edge color based on endpoint significance and colors
+        if s_color == "red" and b_color == "red":
+            edge_color = Colors.RED.value
+        elif s_color == "blue" and b_color == "blue":
+            edge_color = Colors.BLUE.value
+        elif s_color != "black" and b_color != "black":
+            # Both significant but different types
+            edge_color = Colors.YELLOW.value
+        elif show_insignificant_edges:
+            edge_color = no_relations_color
         else:
             continue
 
-        manhattan_line_color = get_manhattan_line_color(s, b)
-
-        cp1 = get_closest_corner(s, b)
-        cp2 = None
-        dist = float("inf")
-
-        for corner in [b.top_left, b.top_right, b.bottom_left, b.bottom_right]:
-            if (
-                s.top_left.point.x > corner.point.x
-                or s.top_right.point.x < corner.point.x
-            ) and (
-                s.top_left.point.y > corner.point.y
-                or s.bottom_left.point.y < corner.point.y
-            ):
-                d = euclidean_distance_point(
-                    (s.center.x, s.center.y), (corner.point.x, corner.point.y)
-                )
-                if d < dist:
-                    cp2 = corner
-                    dist = d
-        if cp2 == None:
-            cp2 = get_closest_corner(b, s)
-            con = get_furthest_connector(cp1, cp2, s.center)
-        else:
-            con = get_furthest_connector(cp1, cp2, b.center)
-
-        lines = get_manhattan_lines_2(cp1, cp2, con, manhattan_line_color)
-
-        if len(lines) == 1:
-            all_manhattan_lines.append(lines[0])
-
-        if len(lines) == 2:
-            all_manhattan_lines.extend(lines)
-            lines_to_extend.extend(lines)
+        # Route Manhattan path while avoiding tile interiors with offset bends.
+        path = route_manhattan(s, b, obstacles, grid_system.block_width)
+        if len(path) < 2:
+            continue
+        all_manhattan_paths.append((path, edge_color))
 
     # Convert to Plotly traces
     # IMPORTANT: Trace order determines z-order (rendering layers)
-    # 1. Smart grid lines (bottom layer - drawn first)
-    # 2. Tile rectangles (middle layer - drawn on top of grid)
-    # 3. Invisible markers (for interactivity - same layer as tiles)
-    # 4. Pathway ID text (top layer - drawn last, visible on tiles)
-    # 5. Canvas borders and Manhattan lines (top decorative layer)
+    # 1. Partition lines via layout shapes (bottom layer, layer="below")
+    # 2. Colored tiles (middle layer)
+    # 3. Black tile borders (part of tiles)
+    # 4. Connecting (crosstalk) lines (above tiles)
+    # 5. Labels and click-target markers (topmost)
     traces = []
+    tile_traces = []
+    click_traces = []
+    line_traces = []
+    annotations = []
 
-    # Add smart grid lines (lightest gray, thin lines)
-    for line in smart_grid_lines:
-        traces.append(
-            go.Scatter(
-                x=[line.point_a.x, line.point_b.x],
-                y=[line.point_a.y, line.point_b.y],
-                mode="lines",
-                line=dict(color="#F5F5F5", width=1),
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
+    # Style constants to match paper-style spec
+    PORT_OFFSET = 3  # outward offset (in data units, approx pixels at 1000px canvas)
+    EDGE_WIDTH = 4  # connecting line width
+    # Tile border width scales with maximize flag (full-size vs overview)
+    tile_line_width = LINE_WIDTH if maximize else max(3, LINE_WIDTH - 1)
 
     # Add blocks as filled rectangles
     for block in all_blocks:
@@ -966,18 +1146,19 @@ def create_authentic_mondrian_map(
             else str(block.color)
         )
 
-        traces.append(
+        tile_traces.append(
             go.Scatter(
                 x=x_coords,
                 y=y_coords,
                 fill="toself",
                 fillcolor=fill_color,
-                line=dict(color=str(Colors.BLACK.value), width=LINE_WIDTH),
+                # Tile borders are strong (paper-style)
+                line=dict(color=str(Colors.BLACK.value), width=tile_line_width),
                 mode="lines",
                 hoverinfo="none",
                 name="",
                 showlegend=False,
-                customdata=[payload],
+                customdata=[payload] * len(x_coords),
                 meta={
                     "dataset": dataset_name,
                     "pathway_id": payload["pathway_id"],
@@ -997,7 +1178,9 @@ def create_authentic_mondrian_map(
         # Examples: 20-unit tile → 12px marker, 200-unit tile → 18px marker (capped)
         marker_size = max(6, min(18, int(min_side * 0.6)))
 
-        traces.append(
+        # Attach click metadata via invisible markers for Streamlit selection.
+        # Marker size already bounded [6,18] from calculation above
+        click_traces.append(
             go.Scatter(
                 x=[cx],
                 y=[cy],
@@ -1009,54 +1192,84 @@ def create_authentic_mondrian_map(
             )
         )
 
-        if show_pathway_ids and min_side >= 30:
-            font_size = max(8, min(16, int(min_side / 6)))
-            traces.append(
-                go.Scatter(
-                    x=[cx],
-                    y=[cy],
-                    mode="text",
-                    text=[block.id],
-                    textposition="middle center",
-                    textfont=dict(size=font_size, color="black"),
-                    hoverinfo="skip",
-                    showlegend=False,
+        if show_pathway_ids and min_side >= label_min_side:
+            normalized_color = _normalize_color_name(fill_color)
+            text_color = (
+                "white" if normalized_color in ["red", "blue", "black"] else "black"
+            )
+            # Use tile center to avoid clipping near edges
+            label_y = cy
+            font_size = max(8, min(12, int(min_side / 6)))
+            annotations.append(
+                dict(
+                    x=cx,
+                    y=label_y,
+                    text=block.id,
+                    showarrow=False,
+                    font=dict(size=font_size, color=text_color),
+                    bgcolor=fill_color,
+                    bordercolor="black",
+                    borderwidth=1,
                 )
             )
 
-    # Add canvas border lines
-    border_lines = [line for line in Line.instances if line.strength == THIN_LINE_WIDTH]
-
-    for line in border_lines:
-        traces.append(
-            go.Scatter(
-                x=[line.point_a.x, line.point_b.x],
-                y=[line.point_a.y, line.point_b.y],
-                mode="lines",
-                line=dict(color="#808080", width=2),
-                showlegend=False,
-                hoverinfo="skip",
-            )
-        )
-
     # Add Manhattan relationship lines (PAG-to-PAG crosstalk)
-    for line in all_manhattan_lines:
-        line_color = (
-            str(line.color.value) if hasattr(line.color, "value") else str(line.color)
-        )
-        traces.append(
+    # These should be rendered BEFORE tiles so they appear behind
+    for path, edge_color in all_manhattan_paths:
+        x_vals = [point[0] for point in path]
+        y_vals = [point[1] for point in path]
+        line_traces.append(
             go.Scatter(
-                x=[line.point_a.x, line.point_b.x],
-                y=[line.point_a.y, line.point_b.y],
+                x=x_vals,
+                y=y_vals,
                 mode="lines",
-                line=dict(color=line_color, width=LINE_WIDTH),
+                line=dict(color=edge_color, width=EDGE_WIDTH),
                 showlegend=False,
                 hoverinfo="skip",
             )
         )
+
+    # Combine traces in correct order: tiles first, connecting lines above tiles, clicks on top
+    traces = tile_traces + line_traces + click_traces
 
     # Create figure
     fig = go.Figure(data=traces)
+
+    # Add shapes: partition lines (gray grid) and border
+    shapes = []
+    if show_partitions:
+        # Add partition lines first (bottom layer)
+        partition_shapes = create_partition_line_shapes(
+            all_blocks,
+            grid_system.block_width,
+            partition_max_lines,
+            partition_color,
+            partition_width,
+        )
+        shapes.extend(partition_shapes)
+
+    # Add black border on top of everything
+    shapes.append(
+        dict(
+            type="rect",
+            x0=0,
+            y0=0,
+            x1=1000,
+            y1=1000,
+            line=dict(color="black", width=8),
+            fillcolor="rgba(0,0,0,0)",
+            layer="above",
+        )
+    )
+
+    if shapes:
+        fig.update_layout(shapes=shapes)
+
+    if annotations:
+        fig.update_layout(annotations=annotations)
+
+    if show_legend:
+        add_paper_style_legend(fig, no_relations_color)
 
     # Set figure size based on maximize option
     if maximize:
@@ -1073,16 +1286,33 @@ def create_authentic_mondrian_map(
             text=f"Authentic Mondrian Map: {dataset_name}", font=dict(size=title_size)
         ),
         xaxis=dict(
-            range=[0, 1000], showticklabels=False, showgrid=False, zeroline=False
+            range=[0, 1000],
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            constrain="domain",
         ),
         yaxis=dict(
-            range=[0, 1000], showticklabels=False, showgrid=False, zeroline=False
+            range=[0, 1000],
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            scaleanchor="x",
+            scaleratio=1,
         ),
         plot_bgcolor="white",
         height=height,
         width=width,
-        showlegend=False,
-        margin=dict(l=20, r=20, t=60, b=20),
+        showlegend=show_legend,
+        legend=dict(
+            orientation="v",
+            x=1.02,
+            y=1.0,
+            xanchor="left",
+            yanchor="top",
+            font=dict(size=12),
+        ),
+        margin=dict(l=20, r=220 if show_legend else 20, t=60, b=20),
         clickmode="event+select",
         hovermode=False,  # Final, definitive hover disabling
     )
@@ -1109,6 +1339,8 @@ def create_canvas_grid(
         vertical_spacing=0.1,
     )
 
+    all_shapes = []
+
     # Add each Mondrian map to its canvas cell
     for idx, (df, name) in enumerate(
         zip(
@@ -1121,12 +1353,39 @@ def create_canvas_grid(
 
         # Create individual Mondrian map for this dataset
         mondrian_fig = create_authentic_mondrian_map(
-            df, name, mem_df=None, maximize=False, show_pathway_ids=show_pathway_ids
+            df,
+            name,
+            mem_df=None,
+            maximize=False,
+            show_pathway_ids=show_pathway_ids,
+            show_legend=False,
         )
 
         # Add traces to subplot
         for trace in mondrian_fig.data:
             fig.add_trace(trace, row=row, col=col)
+
+        # Add shapes (partition lines and borders) to subplot
+        # Transfer shapes to the correct subplot by adjusting xref/yref
+        if hasattr(mondrian_fig, "layout") and hasattr(mondrian_fig.layout, "shapes"):
+            for shape in mondrian_fig.layout.shapes:
+                # Convert Plotly shape object to dictionary
+                if hasattr(shape, "to_plotly_json"):
+                    shape_copy = shape.to_plotly_json()
+                else:
+                    shape_copy = shape
+
+                # Set the shape to apply to the specific subplot
+                if canvas_rows == 1 and canvas_cols == 1:
+                    # Single subplot, use default x/y refs
+                    shape_copy["xref"] = "x"
+                    shape_copy["yref"] = "y"
+                else:
+                    # Multiple subplots, need to specify which axis
+                    axis_suffix = "" if idx == 0 else str(idx + 1)
+                    shape_copy["xref"] = f"x{axis_suffix}"
+                    shape_copy["yref"] = f"y{axis_suffix}"
+                all_shapes.append(shape_copy)
 
         # Configure subplot axes
         fig.update_xaxes(
@@ -1154,6 +1413,7 @@ def create_canvas_grid(
         width=1200,
         margin=dict(l=50, r=50, t=100, b=50),
         hovermode=False,  # Disable hover completely
+        shapes=all_shapes,  # Add all shapes to the figure
     )
 
     return fig
