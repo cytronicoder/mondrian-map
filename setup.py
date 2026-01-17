@@ -2,8 +2,9 @@
 Setup script for Mondrian Map package
 """
 
-from setuptools import setup, find_packages
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Read the README file
 this_directory = Path(__file__).parent
@@ -12,7 +13,9 @@ long_description = (this_directory / "README.md").read_text()
 # Read requirements
 requirements_path = this_directory / "config" / "requirements.txt"
 with open(requirements_path) as f:
-    requirements = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    requirements = [
+        line.strip() for line in f if line.strip() and not line.startswith("#")
+    ]
 
 setup(
     name="mondrian-map",
@@ -23,7 +26,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/your-username/mondrian-map",
-    packages=['mondrian_map'],
+    packages=["mondrian_map"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
@@ -46,9 +49,7 @@ setup(
             "flake8>=3.8",
             "mypy>=0.900",
         ],
-        "viz": [
-            "kaleido>=0.2.1"  # Enables static image export for Plotly figures
-        ],
+        "viz": ["kaleido>=0.2.1"],  # Enables static image export for Plotly figures
     },
     entry_points={
         "console_scripts": [
@@ -65,4 +66,4 @@ setup(
         "Source": "https://github.com/your-username/mondrian-map",
         "Documentation": "https://github.com/your-username/mondrian-map/docs",
     },
-) 
+)

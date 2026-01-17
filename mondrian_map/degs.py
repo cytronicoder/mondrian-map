@@ -118,7 +118,9 @@ def compute_temporal_fold_change(
             expression_df, num_col, denom_col, pseudocount=pseudocount
         )
 
-    logger.info(f"Computed temporal fold changes for {case_name}: {list(result.columns)}")
+    logger.info(
+        f"Computed temporal fold changes for {case_name}: {list(result.columns)}"
+    )
     return result
 
 
@@ -163,17 +165,21 @@ def select_degs(
     # Build DataFrame with directions
     deg_list = []
     for gene in up_genes:
-        deg_list.append({
-            "gene_symbol": gene,
-            "fold_change": fold_changes[gene],
-            "direction": "up",
-        })
+        deg_list.append(
+            {
+                "gene_symbol": gene,
+                "fold_change": fold_changes[gene],
+                "direction": "up",
+            }
+        )
     for gene in down_genes:
-        deg_list.append({
-            "gene_symbol": gene,
-            "fold_change": fold_changes[gene],
-            "direction": "down",
-        })
+        deg_list.append(
+            {
+                "gene_symbol": gene,
+                "fold_change": fold_changes[gene],
+                "direction": "down",
+            }
+        )
 
     return pd.DataFrame(deg_list)
 
@@ -263,23 +269,26 @@ def compute_deg_stats(
         else:
             direction = "neutral"
 
-        results.append({
-            "gene_symbol": gene,
-            "fold_change": fc,
-            "p_value": p_value,
-            "direction": direction,
-        })
+        results.append(
+            {
+                "gene_symbol": gene,
+                "fold_change": fc,
+                "p_value": p_value,
+                "direction": direction,
+            }
+        )
 
     df = pd.DataFrame(results)
 
     # Compute FDR (Benjamini-Hochberg)
     from scipy.stats import false_discovery_control
+
     try:
         df["adjusted_p_value"] = false_discovery_control(df["p_value"])
     except Exception:
         # Fallback for older scipy versions
-        df["adjusted_p_value"] = df["p_value"] * len(df) / (
-            df["p_value"].rank(method="first")
+        df["adjusted_p_value"] = (
+            df["p_value"] * len(df) / (df["p_value"].rank(method="first"))
         )
         df["adjusted_p_value"] = df["adjusted_p_value"].clip(upper=1.0)
 

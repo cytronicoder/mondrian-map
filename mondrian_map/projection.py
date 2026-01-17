@@ -146,7 +146,9 @@ def umap_project(
     try:
         import umap
     except ImportError:
-        raise ImportError("umap-learn not installed. Install with: pip install umap-learn")
+        raise ImportError(
+            "umap-learn not installed. Install with: pip install umap-learn"
+        )
 
     if config is not None:
         seed = config.random_state
@@ -290,11 +292,13 @@ def build_coordinates_table(
             f"pathway count ({len(pathway_ids)})"
         )
 
-    df = pd.DataFrame({
-        "GS_ID": pathway_ids,
-        x_col: coords[:, 0],
-        y_col: coords[:, 1],
-    })
+    df = pd.DataFrame(
+        {
+            "GS_ID": pathway_ids,
+            x_col: coords[:, 0],
+            y_col: coords[:, 1],
+        }
+    )
 
     logger.info(f"Built coordinates table for {len(df)} pathways")
     return df

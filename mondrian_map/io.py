@@ -5,10 +5,10 @@ This module handles file loading, saving, and validation for all data types
 used in the Mondrian Map pipeline.
 """
 
-import json
-import pickle
 import hashlib
+import json
 import logging
+import pickle
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -57,6 +57,7 @@ EXPRESSION_SCHEMA = {
 
 class SchemaValidationError(Exception):
     """Raised when a dataframe doesn't match the expected schema."""
+
     pass
 
 
@@ -81,43 +82,48 @@ def validate_entities_schema(
         ValueError: If validation fails and strict=True
     """
     required_cols = ["GS_ID", "wFC", "pFDR", "x", "y"]
-    
+
     # Check required columns
     missing = [col for col in required_cols if col not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
-    
+
     # Check dtypes for numeric columns
     for col in ["wFC", "pFDR", "x", "y"]:
         if col in df.columns:
             if not pd.api.types.is_numeric_dtype(df[col]):
                 raise ValueError(f"Invalid dtype for column '{col}': expected numeric")
-    
+
     # Check for NaN values in coordinates
     if df["x"].isna().any() or df["y"].isna().any():
         if strict:
             raise ValueError("NaN values found in coordinate columns")
         else:
             warnings.warn("NaN values found in coordinate columns", UserWarning)
-    
+
     # Check coordinate ranges
-    if (df["x"] < 0).any() or (df["x"] > 1).any() or (df["y"] < 0).any() or (df["y"] > 1).any():
+    if (
+        (df["x"] < 0).any()
+        or (df["x"] > 1).any()
+        or (df["y"] < 0).any()
+        or (df["y"] > 1).any()
+    ):
         if strict:
             raise ValueError("Coordinates outside [0, 1] range")
         else:
             warnings.warn("Coordinates outside [0, 1] range", UserWarning)
-    
+
     # Check for negative pFDR values
     if (df["pFDR"] < 0).any():
         raise ValueError("pFDR contains negative values")
-    
+
     # Check for duplicate GS_ID
     if df["GS_ID"].duplicated().any():
         if strict:
             raise ValueError("Duplicate GS_ID values found")
         else:
             warnings.warn("Duplicate GS_ID values found", UserWarning)
-    
+
     return True
 
 
@@ -200,9 +206,9 @@ def load_expression_matrix(
     # Auto-detect separator
     if path.suffix == ".csv":
         sep = ","
-    
+
     df = pd.read_csv(path, sep=sep)
-    
+
     if index_col not in df.columns:
         # Try first column as index
         df = pd.read_csv(path, sep=sep, index_col=0)
@@ -222,7 +228,9 @@ def load_expression_matrix(
             f"(min_value >= {min_value})"
         )
 
-    logger.info(f"Loaded expression matrix: {df.shape[0]} genes × {df.shape[1]} samples")
+    logger.info(
+        f"Loaded expression matrix: {df.shape[0]} genes × {df.shape[1]} samples"
+    )
     return df
 
 

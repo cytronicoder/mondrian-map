@@ -128,6 +128,7 @@ def compute_all_pathway_wfc(
     """
     try:
         from tqdm import tqdm
+
         iterator = tqdm(pag_df["GS_ID"].unique(), disable=not progress_bar)
     except ImportError:
         iterator = pag_df["GS_ID"].unique()
@@ -158,11 +159,13 @@ def compute_all_pathway_wfc(
         wfc_values.append(wfc)
         pfdr_values.append(pfdr)
 
-    result = pd.DataFrame({
-        "GS_ID": pag_ids,
-        "wFC": wfc_values,
-        "pFDR": pfdr_values,
-    })
+    result = pd.DataFrame(
+        {
+            "GS_ID": pag_ids,
+            "wFC": wfc_values,
+            "pFDR": pfdr_values,
+        }
+    )
 
     logger.info(f"Computed wFC for {len(result)} pathways")
     return result
@@ -198,6 +201,7 @@ def compute_pathway_wfc_batch(
     """
     try:
         from tqdm import tqdm
+
         iterator = tqdm(pag_ids, disable=not progress_bar)
     except ImportError:
         iterator = pag_ids
@@ -240,11 +244,13 @@ def compute_pathway_wfc_batch(
         pfdr_rows = pag_df[pag_df["GS_ID"] == pag_id]["pFDR"]
         pfdr = pfdr_rows.values[0] if len(pfdr_rows) > 0 else 1.0
 
-        results.append({
-            "GS_ID": pag_id,
-            "wFC": wfc,
-            "pFDR": pfdr,
-        })
+        results.append(
+            {
+                "GS_ID": pag_id,
+                "wFC": wfc,
+                "pFDR": pfdr,
+            }
+        )
 
     return pd.DataFrame(results)
 
@@ -399,8 +405,7 @@ def filter_top_pathways(
         Filtered DataFrame with top N pathways
     """
     return (
-        entities_df
-        .sort_values(by=sort_by, ascending=ascending)
+        entities_df.sort_values(by=sort_by, ascending=ascending)
         .head(n)
         .reset_index(drop=True)
     )

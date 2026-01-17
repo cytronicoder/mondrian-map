@@ -127,12 +127,15 @@ class MondrianMapPipeline:
     def pager_client(self):
         """Lazily initialize PAGER client."""
         if self._pager_client is None:
-            from .pager_client import PagerClient, PagerConfig as PagerClientConfig
+            from .pager_client import PagerClient
+            from .pager_client import PagerConfig as PagerClientConfig
 
             pager_config = PagerClientConfig(
-                cache_dir=Path(self.config.cache_dir) / "pager"
-                if self.config.use_cache
-                else None,
+                cache_dir=(
+                    Path(self.config.cache_dir) / "pager"
+                    if self.config.use_cache
+                    else None
+                ),
                 use_cache=self.config.use_cache,
                 rate_limit=self.config.pager.rate_limit,
                 max_retries=self.config.pager.max_retries,
@@ -277,9 +280,7 @@ class MondrianMapPipeline:
             html_path=html_path,
         )
 
-    def _run_full_pipeline(
-        self, output_dir: Path, use_cache: bool
-    ) -> PipelineOutputs:
+    def _run_full_pipeline(self, output_dir: Path, use_cache: bool) -> PipelineOutputs:
         """Run complete pipeline from scratch."""
         from .degs import compute_temporal_fold_change, select_degs_from_dataframe
         from .embeddings import EmbeddingGenerator, build_prompts
@@ -394,7 +395,11 @@ class MondrianMapPipeline:
 
     def _load_pathway_info(self) -> Dict[str, Any]:
         """Load pathway annotation information."""
-        info_path = Path(self.config.data_dir) / "pathway_details" / "annotations_with_summary.json"
+        info_path = (
+            Path(self.config.data_dir)
+            / "pathway_details"
+            / "annotations_with_summary.json"
+        )
         if info_path.exists():
             return load_pathway_info(info_path)
         logger.warning(f"Pathway info not found at {info_path}")
@@ -410,9 +415,7 @@ class MondrianMapPipeline:
 
         # Try to load cached DEG sets
         deg_cache_path = (
-            Path(self.config.data_dir)
-            / "differentially_expressed_genes"
-            / "DEGs.pkl"
+            Path(self.config.data_dir) / "differentially_expressed_genes" / "DEGs.pkl"
         )
 
         if self.config.use_cache and deg_cache_path.exists():
@@ -586,8 +589,8 @@ class MondrianMapPipeline:
     ) -> Tuple[Optional[Path], Optional[Path]]:
         """Generate Mondrian Map visualization."""
         try:
-            from .visualization import create_authentic_mondrian_map
             from .data_processing import get_relations
+            from .visualization import create_authentic_mondrian_map
 
             # Apply max relations limit
             if (

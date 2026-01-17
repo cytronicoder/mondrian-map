@@ -261,7 +261,9 @@ class PagerClient:
         source = source or self.config.default_sources
         min_size = min_size if min_size is not None else self.config.default_min_size
         max_size = max_size if max_size is not None else self.config.default_max_size
-        similarity = similarity if similarity is not None else self.config.default_similarity
+        similarity = (
+            similarity if similarity is not None else self.config.default_similarity
+        )
         overlap = overlap if overlap is not None else self.config.default_overlap
         organism = organism or self.config.default_organism
         ncoco = ncoco if ncoco is not None else self.config.default_ncoco

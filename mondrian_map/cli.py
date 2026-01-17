@@ -118,10 +118,7 @@ def cmd_reproduce(args):
 
 def cmd_visualize(args):
     """Generate visualization from entities/relations files."""
-    from .data_processing import (
-        load_pathway_info,
-        get_relations,
-    )
+    from .data_processing import get_relations, load_pathway_info
     from .visualization import create_authentic_mondrian_map
 
     setup_logging(verbose=args.verbose, debug=args.debug)
@@ -159,9 +156,7 @@ def cmd_visualize(args):
         df["Description"] = df["GS_ID"].map(
             lambda x: pathway_info.get(x, {}).get("Description", "")
         )
-        df["NAME"] = df["GS_ID"].map(
-            lambda x: pathway_info.get(x, {}).get("NAME", x)
-        )
+        df["NAME"] = df["GS_ID"].map(lambda x: pathway_info.get(x, {}).get("NAME", x))
     else:
         if "NAME" not in df.columns:
             df["NAME"] = df["GS_ID"]
@@ -312,11 +307,13 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     pipeline_parser.add_argument(
-        "--config", "-c",
+        "--config",
+        "-c",
         help="Path to YAML configuration file",
     )
     pipeline_parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output directory",
     )
     pipeline_parser.add_argument(
@@ -337,7 +334,8 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         help="Random seed for reproducibility",
     )
     pipeline_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose output",
     )
@@ -361,7 +359,8 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         help="Case study to reproduce (gbm)",
     )
     reproduce_parser.add_argument(
-        "--out", "-o",
+        "--out",
+        "-o",
         help="Output directory (default: outputs/<case-study>)",
     )
     reproduce_parser.add_argument(
@@ -390,26 +389,31 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     viz_parser.add_argument(
-        "--entities", "-e",
+        "--entities",
+        "-e",
         required=True,
         help="Path to entities CSV file (required columns: GS_ID, wFC, pFDR, x, y)",
     )
     viz_parser.add_argument(
-        "--relations", "-r",
+        "--relations",
+        "-r",
         help="Path to relations CSV file (optional)",
     )
     viz_parser.add_argument(
-        "--out", "-o",
+        "--out",
+        "-o",
         required=True,
         help="Output file path (html, png, svg, or pdf)",
     )
     viz_parser.add_argument(
-        "--format", "-f",
+        "--format",
+        "-f",
         choices=["html", "png", "svg", "pdf"],
         help="Output format (auto-detected from extension if not specified)",
     )
     viz_parser.add_argument(
-        "--title", "-t",
+        "--title",
+        "-t",
         help="Title for the visualization",
     )
     viz_parser.add_argument(
@@ -433,7 +437,8 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         help="Maximum relations per node (0 = unlimited, default: 2)",
     )
     viz_parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose output",
     )
@@ -456,11 +461,13 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
         help="Action to perform",
     )
     config_parser.add_argument(
-        "--config", "-c",
+        "--config",
+        "-c",
         help="Configuration file to validate",
     )
     config_parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output path for generated configuration",
     )
     config_parser.add_argument(
@@ -481,4 +488,4 @@ For more information, see: https://github.com/aimed-lab/mondrian-map
 
 
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

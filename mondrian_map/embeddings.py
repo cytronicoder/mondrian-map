@@ -111,9 +111,9 @@ class EmbeddingGenerator:
         """Load LLM2Vec model."""
         try:
             import torch
-            from transformers import AutoTokenizer, AutoModel, AutoConfig
-            from peft import PeftModel
             from llm2vec import LLM2Vec
+            from peft import PeftModel
+            from transformers import AutoConfig, AutoModel, AutoTokenizer
         except ImportError as e:
             raise ImportError(
                 f"LLM2Vec dependencies not installed: {e}. "
@@ -419,10 +419,7 @@ def build_llm2vec_prompts(
     Returns:
         Dictionary mapping ID to [instruction, text] pairs
     """
-    return {
-        pag_id: [instruction, text]
-        for pag_id, text in prompts.items()
-    }
+    return {pag_id: [instruction, text] for pag_id, text in prompts.items()}
 
 
 def build_prompts(
@@ -453,15 +450,11 @@ def build_prompts(
     """
     if prompt_type in ["gene_symbol", "gene_description"]:
         if pager_client is None:
-            raise ValueError(
-                f"pager_client required for prompt_type='{prompt_type}'"
-            )
+            raise ValueError(f"pager_client required for prompt_type='{prompt_type}'")
 
     if prompt_type in ["pathway_name", "pathway_description_summary"]:
         if pathway_info is None:
-            raise ValueError(
-                f"pathway_info required for prompt_type='{prompt_type}'"
-            )
+            raise ValueError(f"pathway_info required for prompt_type='{prompt_type}'")
 
     # Build base prompts
     if prompt_type == "gene_symbol":
