@@ -8,7 +8,8 @@ when given the same random seed.
 import numpy as np
 import pytest
 
-from mondrian_map.projection import TSNEConfig, tsne_project, verify_determinism
+from mondrian_map.projection import (TSNEConfig, tsne_project,
+                                     verify_determinism)
 
 
 class TestTSNEDeterminism:

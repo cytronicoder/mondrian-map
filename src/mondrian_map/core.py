@@ -11,11 +11,9 @@ The implementation follows the exact 3-stage process:
 """
 
 import math
-from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Tuple
 
-import numpy as np
 from rtree import index
 
 # Algorithm Constants
@@ -33,23 +31,23 @@ dn_th = abs(1 - (up_th - 1))
 
 def rect_intersects(r1, r2, padding: float = 0.0) -> bool:
     """Check if two rectangles intersect, with optional padding.
-    
+
     Uses strict intersection semantics: rectangles that only share an edge
     or corner point (touching but not overlapping) are NOT considered
     intersecting. Only interior overlap is detected.
-    
+
     Parameters
     ----------
     r1, r2 : List[Tuple[float, float]]
         Rectangles as [(x0, y0), (x1, y1)]
     padding : float
         Additional spacing to add around rectangles before checking intersection
-        
+
     Returns
     -------
     bool
         True if rectangles have interior overlap, False if only touching or separate
-        
+
     Examples
     --------
     >>> rect_intersects([(0, 0), (10, 10)], [(10, 10), (20, 20)])
@@ -114,10 +112,10 @@ def count_overlaps(rects: list, padding: float = 0.0) -> int:
 def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = None):
     """
     Snap a rectangle to the nearest grid within bounds.
-    
+
     Ensures snapped rectangles maintain minimum dimensions to prevent zero-sized
     or invisible tiles that could cause rendering issues.
-    
+
     Parameters
     ----------
     rect : List[Tuple[float, float]]
@@ -128,7 +126,7 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
         Canvas bounds (default: (0, 1000))
     min_size : int, optional
         Minimum width/height after snapping. Defaults to grid size.
-        
+
     Returns
     -------
     List[Tuple[float, float]]
@@ -136,7 +134,7 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
     """
     if min_size is None:
         min_size = grid
-        
+
     (x0, y0), (x1, y1) = rect
     minx, maxx = sorted([x0, x1])
     miny, maxy = sorted([y0, y1])
@@ -145,7 +143,7 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
         """Snap minimum edge down (floor) to grid, maintaining grid alignment"""
         snapped = math.floor(val / grid) * grid
         return max(bounds[0], min(bounds[1], snapped))
-    
+
     def _snap_max(val: float) -> float:
         """Snap maximum edge up (ceil) to grid, maintaining grid alignment"""
         snapped = math.ceil(val / grid) * grid
@@ -157,18 +155,18 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
     maxx = _snap_max(maxx)
     miny = _snap_min(miny)
     maxy = _snap_max(maxy)
-    
+
     # Ensure minimum width - expand while maintaining grid alignment
     if maxx - minx < min_size:
         # Calculate how many grid units we need
         grid_units_needed = math.ceil(min_size / grid)
         target_width = grid_units_needed * grid
-        
+
         # Try to expand symmetrically from center
         center_x = (minx + maxx) / 2
         new_minx = math.floor(center_x / grid) * grid - (target_width // 2)
         new_maxx = new_minx + target_width
-        
+
         # Adjust if expansion exceeds bounds
         if new_minx < bounds[0]:
             new_minx = bounds[0]
@@ -176,20 +174,20 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
         elif new_maxx > bounds[1]:
             new_maxx = bounds[1]
             new_minx = max(bounds[0], new_maxx - target_width)
-        
+
         minx, maxx = new_minx, new_maxx
-    
+
     # Ensure minimum height - expand while maintaining grid alignment
     if maxy - miny < min_size:
         # Calculate how many grid units we need
         grid_units_needed = math.ceil(min_size / grid)
         target_height = grid_units_needed * grid
-        
+
         # Try to expand symmetrically from center
         center_y = (miny + maxy) / 2
         new_miny = math.floor(center_y / grid) * grid - (target_height // 2)
         new_maxy = new_miny + target_height
-        
+
         # Adjust if expansion exceeds bounds
         if new_miny < bounds[0]:
             new_miny = bounds[0]
@@ -197,7 +195,7 @@ def snap_rect_to_grid(rect, grid: int = 20, bounds=(0, 1000), min_size: int = No
         elif new_maxy > bounds[1]:
             new_maxy = bounds[1]
             new_miny = max(bounds[0], new_maxy - target_height)
-        
+
         miny, maxy = new_miny, new_maxy
 
     return [(minx, miny), (maxx, maxy)]
@@ -576,7 +574,7 @@ class GridSystem:
         ordered_indices = sorted(
             range(len(areas_scaled)), key=lambda i: areas_scaled[i], reverse=True
         )
-        
+
         # Create spatial index for efficient overlap queries
         spatial_idx = index.Index()
         accepted_rects = []

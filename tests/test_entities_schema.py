@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from mondrian_map.io import ENTITIES_SCHEMA, save_entities, validate_entities_schema
+from mondrian_map.io import (ENTITIES_SCHEMA, save_entities,
+                             validate_entities_schema)
 
 
 class TestEntitiesSchema:

@@ -10,29 +10,14 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from .core import (
-    LINE_WIDTH,
-    THIN_LINE_WIDTH,
-    Block,
-    Colors,
-    Corner,
-    CornerPos,
-    GridSystem,
-    Line,
-    LineDir,
-    Point,
-    adjust,
-    adjust_d,
-    adjust_e,
-    blank_canvas,
-    euclidean_distance_point,
-    get_line_direction,
-)
-from .data_processing import get_mondrian_color_description, prepare_pathway_data
+from .core import (LINE_WIDTH, THIN_LINE_WIDTH, Block, Colors, Corner,
+                   CornerPos, GridSystem, Line, LineDir, Point, adjust,
+                   adjust_d, blank_canvas, euclidean_distance_point,
+                   get_line_direction)
+from .data_processing import prepare_pathway_data
 
 
 def get_closest_corner(block_a: Block, block_b: Block) -> Corner:
@@ -1005,7 +990,7 @@ def create_authentic_mondrian_map(
         width = abs(block.bottom_right_p[0] - block.top_left_p[0])
         height = abs(block.bottom_right_p[1] - block.top_left_p[1])
         min_side = min(width, height)
-        
+
         # Scale marker size based on tile dimensions to prevent overflow beyond boundaries
         # min_side is in data coordinates (0-1000 range), but marker size is in pixels
         # Formula: 60% of tile's minimum dimension, capped between 6-18 pixels

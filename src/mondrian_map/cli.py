@@ -11,7 +11,6 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 
@@ -227,7 +226,8 @@ def cmd_visualize(args):
 
 def cmd_config(args):
     """Generate or validate configuration files."""
-    from .config import PipelineConfig, get_gbm_case_study_config, validate_config
+    from .config import (PipelineConfig, get_gbm_case_study_config,
+                         validate_config)
 
     setup_logging(verbose=True)
 

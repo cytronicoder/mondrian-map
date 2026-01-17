@@ -1,7 +1,6 @@
 ############################################
 ### PAGER functions for PAGER server API ###
 ############################################
-import numpy as np
 import pandas as pd
 import requests
 

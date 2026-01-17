@@ -7,7 +7,7 @@ to generate 2D coordinates for visualization.
 
 import logging
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 import numpy as np
 import pandas as pd

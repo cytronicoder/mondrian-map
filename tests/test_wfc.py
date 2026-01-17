@@ -6,7 +6,6 @@ These tests verify that the wFC formula matches the paper specification:
 where W_i = RP_SCORE and FC_i = FoldChange
 """
 
-import numpy as np
 import pandas as pd
 import pytest
 

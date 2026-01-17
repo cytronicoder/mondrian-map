@@ -11,46 +11,23 @@ Example:
 """
 
 # New pipeline modules
-from .config import (
-    CaseStudyConfig,
-    EmbeddingConfig,
-    PipelineConfig,
-    ThresholdConfig,
-    TSNEConfig,
-    VisualizationConfig,
-    get_gbm_case_study_config,
-)
+from .config import (CaseStudyConfig, EmbeddingConfig, PipelineConfig,
+                     ThresholdConfig, TSNEConfig, VisualizationConfig,
+                     get_gbm_case_study_config)
 from .core import Block, Colors, Corner, GridSystem, Line, blank_canvas
-from .data_processing import (
-    get_areas,
-    get_colors,
-    get_IDs,
-    get_mondrian_color_description,
-    get_points,
-    load_dataset,
-    load_pathway_info,
-)
-from .degs import compute_fold_change, compute_temporal_fold_change, select_degs
-from .embeddings import (
-    EmbeddingGenerator,
-    build_pathway_description_prompts,
-    build_pathway_name_prompts,
-)
-from .io import (
-    load_deg_table,
-    load_embeddings,
-    load_expression_matrix,
-    save_entities,
-    save_manifest,
-    save_relations,
-)
-from .pathway_stats import build_entities_table, compute_pathway_wfc, compute_wfc
-from .pipeline import (
-    MondrianMapPipeline,
-    PipelineOutputs,
-    reproduce_case_study,
-    run_pipeline,
-)
+from .data_processing import (get_areas, get_colors, get_IDs,
+                              get_mondrian_color_description, get_points,
+                              load_dataset, load_pathway_info)
+from .degs import (compute_fold_change, compute_temporal_fold_change,
+                   select_degs)
+from .embeddings import (EmbeddingGenerator, build_pathway_description_prompts,
+                         build_pathway_name_prompts)
+from .io import (load_deg_table, load_embeddings, load_expression_matrix,
+                 save_entities, save_manifest, save_relations)
+from .pathway_stats import (build_entities_table, compute_pathway_wfc,
+                            compute_wfc)
+from .pipeline import (MondrianMapPipeline, PipelineOutputs,
+                       reproduce_case_study, run_pipeline)
 from .projection import normalize_coordinates, tsne_project, umap_project
 
 # Visualization module requires plotly - import only when needed

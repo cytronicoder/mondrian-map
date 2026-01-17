@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 import subprocess
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -18,17 +18,8 @@ import numpy as np
 import pandas as pd
 
 from .config import PipelineConfig, get_gbm_case_study_config
-from .io import (
-    ensure_directory,
-    load_embeddings,
-    load_entities,
-    load_pathway_info,
-    load_relations,
-    save_embeddings,
-    save_entities,
-    save_manifest,
-    save_relations,
-)
+from .io import (ensure_directory, load_embeddings, load_pathway_info,
+                 save_embeddings, save_entities, save_manifest, save_relations)
 
 logger = logging.getLogger(__name__)
 
@@ -282,9 +273,9 @@ class MondrianMapPipeline:
 
     def _run_full_pipeline(self, output_dir: Path, use_cache: bool) -> PipelineOutputs:
         """Run complete pipeline from scratch."""
-        from .degs import compute_temporal_fold_change, select_degs_from_dataframe
-        from .embeddings import EmbeddingGenerator, build_prompts
-        from .pathway_stats import build_entities_table, compute_pathway_wfc_batch
+        from .embeddings import build_prompts
+        from .pathway_stats import (build_entities_table,
+                                    compute_pathway_wfc_batch)
         from .projection import build_coordinates_table, project_embeddings
 
         # Step 1: Load expression data and compute DEGs
@@ -407,11 +398,6 @@ class MondrianMapPipeline:
 
     def _compute_degs(self) -> Tuple[pd.DataFrame, Dict[str, set]]:
         """Compute DEGs from expression data or load from cache."""
-        from .degs import (
-            compute_temporal_fold_change,
-            filter_expressed_genes,
-            select_degs_from_dataframe,
-        )
 
         # Try to load cached DEG sets
         deg_cache_path = (

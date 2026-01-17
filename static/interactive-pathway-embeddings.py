@@ -1,4 +1,3 @@
-import matplotlib.colors as mcolors
 import plotly.express as px
 
 plot_df = pd.DataFrame(normalized_embedding, columns=["x", "y"])

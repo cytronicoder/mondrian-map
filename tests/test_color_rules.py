@@ -10,9 +10,9 @@ These tests verify that pathway color classification follows the paper's rules:
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from mondrian_map.data_processing import get_colors, get_mondrian_color_description
+from mondrian_map.data_processing import (get_colors,
+                                          get_mondrian_color_description)
 from mondrian_map.pathway_stats import classify_pathways
 
 

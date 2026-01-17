@@ -6,7 +6,7 @@ for the Mondrian Map pipeline.
 """
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
